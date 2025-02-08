@@ -1,4 +1,6 @@
-if type brew &>/dev/null
+FPATH="$HOME/.config/zsh/completion:${FPATH}"
+
+if ( type brew &>/dev/null )
 then
   FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
 
@@ -14,7 +16,19 @@ export HISTTIMEFORMAT="[%F %T] "
 
 source $HOME/.env
 source $HOME/.me
-export VOLTA_HOME="$HOME/.volta"
-export PATH="$VOLTA_HOME/bin:$PATH"
 
-[ -f "${XDG_CONFIG_HOME:-$HOME/.config}"/fzf/fzf.zsh ] && source "${XDG_CONFIG_HOME:-$HOME/.config}"/fzf/fzf.zsh
+if [[ "$OR_APP_NAME" != "Aider" ]]; then
+  eval "$(nodenv init -)"
+  if command -v pyenv > /dev/null; then eval "$(pyenv init -)"; fi
+  eval "$(rbenv init -)"
+
+  # Source Cargo environment
+  . "$HOME/.cargo/env"
+
+  export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
+fi
+
+eval "$(op completion zsh)"; compdef _op op
+
+# Added by Pear Runtime, configures system with Pear CLI
+export PATH="/Users/kaleblape/Library/Application Support/pear/bin":$PATH

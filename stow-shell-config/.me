@@ -4,6 +4,7 @@ export CLICOLOR=1
 export EDITOR=vim
 export XDG_CONFIG_HOME="$HOME/.config"
 export RIPGREP_CONFIG_PATH="$XDG_CONFIG_HOME/ripgrep/.ripgreprc"
+export GPG_TTY=$(tty)
 
 export HISTSIZE=1000000
 export SAVEHIST=1000000000
@@ -13,11 +14,13 @@ export DEV="$HOME/dev"
 export MYDEV="$DEV/$GIT_USER"
 export DOTFILES="$MYDEV/dotfiles"
 export ICLOUD_DIR="~/Library/Mobile Documents/com~apple~CloudDocs"
+export MAKE="make --jobs 8" # https://www.gnu.org/software/make/manual/html_node/Parallel.html
 
 # Manage mischief
 export HOMEBREW_NO_AUTO_UPDATE=1
 export HUSKY_SKIP_INSTALL=1 # whyyy would anyone opt into slow commits???
 export HUSKY_SKIP_HOOKS=1
+export DISABLE_SPRING=1
 
 # eval "$(git run --bash-complete)"
 
@@ -53,6 +56,8 @@ alias gemfile-me-rails='echo "source \"https://rubygems.org\"\ngem \"rails\"" > 
 # alias aws-date='date -v +3M -u +"%Y-%m-%dT%H:%M:%SZ"'
 alias aws-date='date -v +3M -u +"%m/%d/%Y %H:%M:%SZ"'
 alias doteb='dotenv -f .env.eb eb'
+alias blank='printf "\n%.0s" {1..$(tput lines)}'
+alias nvim-migration='NVIM_APPNAME=nvim-migration nvim'
 
 alias la="ls -a"
 alias be="bundle exec"
