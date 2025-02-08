@@ -1,5 +1,10 @@
 */.stow-local-ignore
 
 /stow-vim/.vim/plugged/
-/stow-xdg/.config/fzf/
-/stow-xdg/.config/gh/
+/stow-xdg/.config/*
+
+!/stow-xdg/.config/act/
+!/stow-xdg/.config/nvim/
+!/stow-xdg/.config/ripgrep/
+!/stow-xdg/.config/zsh/
+!/stow-xdg/.config/nvim-migration/
