@@ -40,6 +40,7 @@ brew install tmate
 brew install gh
 brew install tree
 brew install ripgrep
+brew install act
 
 # Web
 # brew install ievms
