@@ -4,3 +4,4 @@ source $HOME/.env
 # friend… 😢
 
 # source $HOME/.me
+. "$HOME/.cargo/env"
