@@ -11,6 +11,7 @@ brew upgrade
 # Essentials
 # brew install ctags
 brew install bat
+brew install bison
 brew install fzf && \
   "$(brew --prefix)"/opt/fzf/install --xdg --all
 brew install git
@@ -24,8 +25,8 @@ brew install stow
 
 # Manage my runtimes
 # brew cask install vagrant
-brew install rbenv
-brew install nodenv
+brew install rbenv ruby-build
+brew install nodenv node-build
 
 # Manage my apps
 brew install mas
@@ -42,6 +43,8 @@ brew install ripgrep
 # brew install ievms
 
 # GUI
+brew install --cask discord || true
+brew install --cask docker || true
 brew install --cask macvim || true # "... || true" -> continue on error
 brew install --cask rectangle || true
 brew install --cask google-chrome || true
