@@ -26,7 +26,7 @@
 	branches-unmerged = branches --no-merged=master
 	co = checkout
 	co-master = !git fetch origin master && git checkout "$@" origin/master
-	co-remote = !git fetch origin "$1" && git checkout "$@"
+	co-remote = !git fetch origin "$1" && git checkout "${@:2}" "origin/$1 #"
 	coauth = !printf \"Co-authored-by: %s\" \"$(git log --pretty=format:'%an <%ae>' -1000 | sort | uniq | fzf)\"
 	cob = checkout -b
 	wipe = !git add -A && git commit -qm 'WIPE SAVEPOINT' && git reset HEAD~1 --hard
