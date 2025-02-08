@@ -21,3 +21,6 @@ tags
 
 # Personal quirks
 .env.eb
+
+.aider*
+!.aider.conf.yml
