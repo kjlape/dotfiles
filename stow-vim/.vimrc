@@ -16,22 +16,35 @@ if empty(glob('~/.vim/autoload/plug.vim'))
   augroup END
 endif
 
-call plug#begin('~/.vim/plugged')
+if has('nvim')
+  call plug#begin('~/.config/nvim/plugged')
+else
+  call plug#begin('~/.vim/plugged')
+endif
+
   Plug '/usr/local/opt/fzf'
-  " Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
+  Plug 'junegunn/fzf' ", { 'do': { -> fzf#install() } }
   Plug 'junegunn/fzf.vim'
+  Plug 'junegunn/limelight.vim'
 "   Plug 'AndrewRadev/splitjoin.vim'
+  Plug 'alligator/accent.vim'
   Plug 'airblade/vim-gitgutter'
   Plug 'airblade/vim-localorie'
   Plug 'DataWraith/auto_mkdir'
   Plug 'danchoi/ri.vim'
+  Plug 'dense-analysis/neural'
+  Plug 'muniftanjim/nui.nvim'
+  Plug 'elpiloto/significant.nvim'
   " Plug 'digitaltoad/vim-pug'
   Plug 'alvan/vim-closetag'
   Plug 'christoomey/vim-tmux-navigator'
   " Plug 'ElmCast/elm-vim'
   " Plug 'fcpg/vim-waikiki'
+  " Plug 'github/copilot.vim'
   " Plug 'jalvesaq/Nvim-R'
   " Plug 'janko-m/vim-test'
+  Plug 'jaredgorski/fogbell.vim'
+  Plug 'pasky/claude.vim'
   Plug 'pingortle/vim-test', { 'branch': 'teenytest' }
   " Plug 'jremmen/vim-ripgrep'
   Plug 'junegunn/goyo.vim'
@@ -42,8 +55,9 @@ call plug#begin('~/.vim/plugged')
   " Plug 'mattn/emmet-vim'
   Plug 'nelstrom/vim-textobj-rubyblock'
   Plug 'neovimhaskell/haskell-vim'
+  " Plug 'prabirshrestha/vim-lsp'
   Plug 'rust-lang/rust.vim'
-  Plug 'sheerun/vim-polyglot'
+  " Plug 'sheerun/vim-polyglot'
   Plug 'tpope/vim-abolish'
   Plug 'tpope/vim-bundler'
   Plug 'tpope/vim-commentary'
@@ -60,15 +74,192 @@ call plug#begin('~/.vim/plugged')
   Plug 'vim-airline/vim-airline'
   Plug 'vim-ruby/vim-ruby'
   Plug 'vim-scripts/bats.vim'
-  Plug 'w0rp/ale'
+  " Plug 'w0rp/ale'
   Plug 'zhaozg/vim-diagram'
 
   Plug 'vim-airline/vim-airline-themes'
   Plug 'jeffkreeftmeijer/vim-dim'
+
+  if has('nvim')
+    Plug 'neovim/nvim-lspconfig'
+
+    Plug 'hrsh7th/nvim-cmp' " Optional
+    Plug 'hrsh7th/cmp-nvim-lsp'
+    Plug 'hrsh7th/cmp-buffer'
+    Plug 'hrsh7th/cmp-path'
+
+    Plug 'nvim-lua/plenary.nvim'
+    Plug 'nvim-telescope/telescope.nvim' " Optional
+    Plug 'epwalsh/obsidian.nvim'
+
+    Plug 'epwalsh/pomo.nvim'
+    Plug 'rcarriga/nvim-notify'
+
+    Plug 'supermaven-inc/supermaven-nvim'
+    Plug 'nvim-lua/plenary.nvim'
+    Plug 'nvim-treesitter/nvim-treesitter', {'do': ':TSUpdate'}
+    Plug 'nvim-telescope/telescope.nvim' " Optional
+    Plug 'stevearc/dressing.nvim' " Optional: Improves the default Neovim UI
+    Plug 'olimorris/codecompanion.nvim'
+
+    " -- Avante --
+    " Deps
+    Plug 'stevearc/dressing.nvim'
+    Plug 'nvim-lua/plenary.nvim'
+    Plug 'MunifTanjim/nui.nvim'
+
+    " Optional deps
+    Plug 'nvim-tree/nvim-web-devicons' "or Plug 'echasnovski/mini.icons'
+    Plug 'HakonHarnes/img-clip.nvim'
+    Plug 'zbirenbaum/copilot.lua'
+    Plug 'MeanderingProgrammer/render-markdown.nvim'
+
+    " Yay
+    Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': { -> avante#build('source=true') }, 'on': 'AvanteAsk' }
+  endif
 call plug#end()
 
+if has('nvim')
+lua << EOF
+  local lspconfig = require("lspconfig")
+  lspconfig.sourcekit.setup({
+    capabilities = {
+      workspace = {
+        didChangeWatchedFiles = {
+          dynamicRegistration = true
+        }
+      },
+    },
+    root_dir = function(filename, _)
+      local util = require("lspconfig.util")
+      return util.root_pattern("buildServer.json")(filename)
+        or util.root_pattern("*.xcodeproj", "*.xcworkspace")(filename)
+        or util.find_git_ancestor(filename)
+        or util.root_pattern("Package.swift")(filename)
+    end,
+  })
+
+  local function add_ruby_deps_command(client, bufnr)
+    vim.api.nvim_buf_create_user_command(bufnr, "ShowRubyDeps", function(opts)
+      local params = vim.lsp.util.make_text_document_params()
+      local showAll = opts.args == "all"
+
+      client.request("rubyLsp/workspace/dependencies", params, function(error, result)
+        if error then
+          print("Error showing deps: " .. error)
+          return
+        end
+
+        local qf_list = {}
+        for _, item in ipairs(result) do
+          if showAll or item.dependency then
+            table.insert(qf_list, {
+              text = string.format("%s (%s) - %s", item.name, item.version, item.dependency),
+              filename = item.path
+            })
+          end
+        end
+
+        vim.fn.setqflist(qf_list)
+        vim.cmd('copen')
+      end, bufnr)
+    end,
+    {nargs = "?", complete = function() return {"all"} end})
+  end
+
+  lspconfig.ruby_lsp.setup({
+    init_options = {
+      formatter = 'standard',
+      linters = { 'standard' },
+    },
+    on_attach = function(client, bufnr)
+      add_ruby_deps_command(client, bufnr)
+    end,
+  })
+
+  -- https://www.mitchellhanberg.com/modern-format-on-save-in-neovim/
+  vim.api.nvim_create_autocmd("LspAttach", {
+    group = vim.api.nvim_create_augroup("lsp", { clear = true }),
+    callback = function(args)
+    -- 2
+    vim.api.nvim_create_autocmd("BufWritePre", {
+      -- 3
+      buffer = args.buf,
+      callback = function()
+      -- 4 + 5
+      vim.lsp.buf.format {async = false, id = args.data.client_id }
+      end,
+    })
+    end
+  })
+
+  local cmp = require('cmp')
+  local opts = {
+    sources = cmp.config.sources({
+      { name = 'nvim_lsp' },
+      { name = 'buffer' },
+      { name = 'path' },
+    }),
+
+    mapping = cmp.mapping.preset.insert({
+      ['<CR>'] = cmp.mapping.confirm({ select = true })
+    }),
+  }
+  cmp.setup(opts)
+
+
+  vim.api.nvim_create_autocmd('LspAttach', {
+    desc = 'LSP actions',
+    callback = function(args)
+      vim.keymap.set('n', 'K', vim.lsp.buf.hover, {noremap = true, silent = true})
+      vim.keymap.set('n', 'gd', vim.lsp.buf.definition, {noremap = true, silent = true})
+    end,
+  })
+
+  require("pomo").setup({})
+
+  require("obsidian").setup({
+    workspaces = {
+      {
+          name = "default",
+          path = "~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Default"
+      }
+    }
+  })
+
+  require("supermaven-nvim").setup({})
+  require("codecompanion").setup({
+    strategies = {
+      chat = {
+        adapter = "anthropic",
+      },
+      inline = {
+        adapter = "anthropic",
+      },
+      agent = {
+        adapter = "anthropic",
+      },
+    }
+  })
+
+  -- deps:
+  require('img-clip').setup({
+    -- use recommended settings from above
+  })
+  require('render-markdown').setup({
+    file_types = {'markdown', 'Avante'},
+  })
+
+  -- require('avante_lib').load()
+  -- require('avante').setup({
+  --   -- default config
+  --   -- see :h avante-config
+  -- })
+EOF
+endif
+
 " " Theme
-colorscheme dim
+colorscheme accent
 let g:airline_theme = 'minimalist'
 
 function! ReloadMood()
@@ -95,6 +286,11 @@ command! ReloadMood call ReloadMood()
 let g:markdown_fenced_languages = ['ruby', 'js=javascript']
 let g:markdown_minlines = 150
 let g:tmux_navigator_disable_when_zoomed = 1
+let g:claude_api_key = $CLAUDE_API_KEY
+
+" " Plugin vim-ruby
+let g:ruby_indent_assignment_style = 'variable'
+let g:ruby_indent_hanging_elements = 0
 
 " " Plugin vim-test
 let test#strategy = 'dispatch'
@@ -103,6 +299,15 @@ let test#custom_runners = {'Ruby': ['DHH']}
 nnoremap <silent> <cr>t :TestFile<cr>
 nnoremap <silent> <cr>n :TestNearest<cr>
 nnoremap <silent> <cr><cr> :TestLast<cr>
+
+" " Plugin neural
+let g:neural = {
+\   'source': {
+\       'openai': {
+\           'api_key': $OPENAI_API_KEY,
+\       },
+\   },
+\}
 
 " " Plugin vim-closetag
 " " filenames like *.xml, *.html, *.xhtml, ...
@@ -164,6 +369,18 @@ endfunction
 autocmd! User GoyoEnter nested call <SID>goyo_enter()
 autocmd! User GoyoLeave nested call <SID>goyo_leave()
 
+autocmd! User GoyoEnter Limelight
+autocmd! User GoyoLeave Limelight!
+
+" " Plugin LSP
+" if executable('standardrb')
+"   au User lsp_setup call lsp#register_server({
+"         \ 'name': 'standardrb',
+"         \ 'cmd': ['standardrb', '--lsp'],
+"         \ 'allowlist': ['ruby'],
+"         \ })
+" endif
+
 " " Plugin ALE
 let g:ale_linter_aliases = {}
 let g:ale_linter_aliases.vue = ['vue', 'javascript']
@@ -176,10 +393,11 @@ let g:ale_fixers.json = ['prettier', 'jq']
 let g:ale_fixers.javascript = ['prettier-standard', 'standard', 'eslint']
 let g:ale_fixers.vue = ['prettier', 'eslint']
 " let g:ale_fixers.python = ['autopep8']
-let g:ale_fixers.ruby = ['standardrb']
+let g:ale_fixers.ruby = ['standardrb', 'rubocop']
 " let g:ale_fixers.rust = ['rustfmt']
 let g:ale_fixers.eruby = ['erblint']
 let g:ale_fixers.terraform = ['terraform']
+let g:ale_fixers.swift = ['swiftlint']
 
 let g:ale_linters = {}
 let g:ale_linters['*'] = ['remove_trailing_lines', 'trim_whitespace']
@@ -187,10 +405,12 @@ let g:ale_linters.css = ['prettier']
 let g:ale_linters.javascript = ['standard']
 let g:ale_linters.json = ['jq']
 " let g:ale_linters.python = ['flake8']
-let g:ale_linters.ruby = ['standardrb', 'reek']
+let g:ale_linters.ruby = ['standardrb', 'reek', 'rubocop']
 " let g:ale_linters.rust = ['analyzer']
 let g:ale_linters.eruby = ['erblint']
 let g:ale_linters.terraform = ['terraform']
+let g:ale_linters.swift = ['swiftlint']
+
 let g:ale_ruby_standardrb_executable = 'bundle'
 
 let g:ale_fix_on_save = 1
@@ -264,6 +484,7 @@ nnoremap <leader>l >>
 nnoremap <leader>g :Git<CR>
 
 nnoremap <leader>f :FZF<CR>
+nnoremap <leader>b :Buffers<CR>
 
 " " Shortcut for directory of current buffer's file
 cabbr <expr> %% fnamemodify(expand('%:p:h'), ':~:.')
@@ -359,6 +580,8 @@ nnoremap <leader>rg :Rg <C-r><C-w>
 
 command! WUPS execute 'let @*=@"'
 command! PBTestLastCommand execute 'let @*=g:test#last_command'
+command! PBBufferFullPath execute 'let @*=expand("%:p")'
+command! PBBufferRelativePath execute 'let @*=fnamemodify(expand("%"), ":~:.")'
 
 command! ZKMode execute 'setf markdown'
 command! ZKSave execute 'w' strftime("%Y%m%d-".@z.".md")
