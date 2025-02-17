@@ -14,7 +14,8 @@ export DEV="$HOME/dev"
 export MYDEV="$DEV/$GIT_USER"
 export DOTFILES="$MYDEV/dotfiles"
 export ICLOUD_DIR="~/Library/Mobile Documents/com~apple~CloudDocs"
-export MAKE="make --jobs 8" # https://www.gnu.org/software/make/manual/html_node/Parallel.html
+export MAKE="make"
+export MAKEFLAGS="-j$(sysctl -n hw.ncpu)" # https://www.gnu.org/software/make/manual/html_node/Parallel.html
 
 # Manage mischief
 export HOMEBREW_NO_AUTO_UPDATE=1
