@@ -8,3 +8,6 @@
 !/stow-xdg/.config/ripgrep/
 !/stow-xdg/.config/zsh/
 !/stow-xdg/.config/nvim-migration/
+!/stow-xdg/.config/kitty/
+
+*.bak
