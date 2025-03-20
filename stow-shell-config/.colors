@@ -50,9 +50,9 @@ setopt prompt_subst
 
 export SCREENCAST_PROMPT='💰 '
 
-PROMPT='[%F{gray}%3~%f][%F{gray}$(git_branch_name)%f]
+PROMPT='[%F{gray}%3~%f][%F{gray}$(git_branch_name)%f] %(?.%F{green}✓%f.%F{red}✗%f)
 %B%F{gray}%#%f%b '
-RPROMPT='%(?.%F{green}√%f.%F{yellow}∆%f)'
+RPROMPT=''
 
 # export PS1="$COLOR_RESET[$FG_GRAY%2~$COLOR_RESET]\
 # [$FG_GRAY=$(printf '$(git_prompt)')$COLOR_RESET]\n\
