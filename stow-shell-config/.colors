@@ -46,11 +46,15 @@ function git_branch_name() {
   fi
 }
 
+function is_ssh() {
+  [[ -n $SSH_CONNECTION ]] && echo '🔒 '
+}
+
 setopt prompt_subst
 
 export SCREENCAST_PROMPT='💰 '
 
-PROMPT='[%F{gray}%3~%f][%F{gray}$(git_branch_name)%f] %(?.%F{green}✓%f.%F{red}✗%f)
+PROMPT='%F{yellow}$(is_ssh)%f[%F{gray}%3~%f][%F{gray}$(git_branch_name)%f] %(?.%F{green}✓%f.%F{red}✗%f)
 %B%F{gray}%#%f%b '
 RPROMPT=''
 
