@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Lossless audio extraction script using ffmpeg
+# Usage: <script name> input.mp4 [output.aac]
+
+# Check if input file is provided
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 input.mp4 [output.aac]"
+    exit 1
+fi
+
+INPUT="$1"
+
+# Check if input file exists
+if [ ! -f "$INPUT" ]; then
+    echo "Error: File '$INPUT' not found"
+    exit 1
+fi
+
+# Set output filename
+if [ $# -eq 2 ]; then
+    OUTPUT="$2"
+else
+    # Get filename without extension and add .aac
+    BASENAME=$(basename "$INPUT" .mp4)
+    OUTPUT="${BASENAME}_audio.aac"
+fi
+
+echo "Extracting audio from: $INPUT"
+echo "Output file: $OUTPUT"
+
+# Extract audio losslessly
+ffmpeg -i "$INPUT" -vn -acodec copy "$OUTPUT"
+
+# Check if ffmpeg succeeded
+if [ $? -eq 0 ]; then
+    echo "Audio extracted successfully: $OUTPUT"
+else
+    echo "Error: Audio extraction failed"
+    exit 1
+fi

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Halve the size of a video file
+# Usage: ffmpeg-halve <input-file> <output-file>
+
+set -euo pipefail
+
+INPUT_FILE="$1"
+DESTINATION="${2:-${INPUT_FILE%.*}-small.${INPUT_FILE##*.}}"
+
+# Video filter to halve dimensions while maintaining aspect ratio
+# and ensuring dimensions are even numbers (required by some codecs)
+VIDEO_FILTER="scale=iw/2:ih/2:force_original_aspect_ratio=decrease,crop=trunc(iw/2)*2:trunc(ih/2)*2"
+
+echo "Halving dimensions of $INPUT_FILE..."
+ffmpeg -i "$INPUT_FILE" -vf "$VIDEO_FILTER" -c:a copy "$DESTINATION"
+echo "Done! Output saved to $DESTINATION"

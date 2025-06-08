@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# Lossless MP4 concatenation script using ffmpeg
+# Usage: <script name> file1.mp4 file2.mp4 file3.mp4 [output.mp4]
+
+# Check if at least 3 input files are provided
+if [ $# -lt 3 ]; then
+    echo "Usage: $0 file1.mp4 file2.mp4 file3.mp4 [output.mp4]"
+    echo "At least 3 MP4 files required"
+    exit 1
+fi
+
+# Set output filename
+if [ $# -eq 4 ]; then
+    OUTPUT="$4"
+else
+    OUTPUT="concatenated_output.mp4"
+fi
+
+# Create temporary file list
+TEMP_LIST=$(mktemp)
+
+# Add input files to the list
+for file in "$@"; do
+    # Skip the last argument if it's the output filename
+    if [ "$file" = "$OUTPUT" ] && [ $# -eq 4 ]; then
+        continue
+    fi
+    
+    # Check if file exists
+    if [ ! -f "$file" ]; then
+        echo "Error: File '$file' not found"
+        rm "$TEMP_LIST"
+        exit 1
+    fi
+    
+    echo "file '$file'" >> "$TEMP_LIST"
+done
+
+echo "Concatenating files to: $OUTPUT"
+cat "$TEMP_LIST"
+
+# Perform lossless concatenation
+ffmpeg -f concat -safe 0 -i "$TEMP_LIST" -c copy "$OUTPUT"
+
+# Check if ffmpeg succeeded
+if [ $? -eq 0 ]; then
+    echo "Successfully created: $OUTPUT"
+else
+    echo "Error: Concatenation failed"
+fi
+
+# Clean up temporary file
+rm "$TEMP_LIST"
