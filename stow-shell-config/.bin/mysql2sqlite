@@ -47,29 +47,42 @@ class MySQL2SQLiteConverter
 
       # Handle ALTER TABLE statements
       if line.match?(/^ALTER TABLE/i)
+        # Skip standalone ALTER TABLE statements without table name
+        next if !line.match?(/ALTER TABLE\s+[`"]([^`"]+)[`"]/i)
+        
+        # Extract the table name
+        table_name = line.match(/ALTER TABLE\s+[`"]([^`"]+)[`"]/i)[1]
+        
         # Handle complex ALTER TABLE statements with multiple ADD PRIMARY KEY clauses
         if line.match?(/ADD PRIMARY KEY|ADD UNIQUE KEY|ADD KEY/i)
-          # Extract the table name first
-          table_name = line.match(/ALTER TABLE\s+[`"]([^`"]+)[`"]/i)&.[](1)
-          
-          if table_name
-            # Process each ADD PRIMARY/UNIQUE/KEY clause separately
-            line.scan(/ADD\s+(PRIMARY KEY|UNIQUE KEY|KEY)\s+(?:[`"]([^`"]+)[`"])?\s*\(([^)]+)\)/i) do |key_type, key_name, columns|
-              key_name ||= "pk_#{table_name}"
-              columns = columns.gsub(/[`"]/i, '')
-              
-              if key_type == "PRIMARY KEY"
-                sqlite += "CREATE UNIQUE INDEX IF NOT EXISTS `pk_#{table_name}` ON `#{table_name}` (#{columns});\n"
-              elsif key_type == "UNIQUE KEY"
-                sqlite += "CREATE UNIQUE INDEX IF NOT EXISTS `#{key_name}` ON `#{table_name}` (#{columns});\n"
-              else
-                sqlite += "CREATE INDEX IF NOT EXISTS `#{key_name}` ON `#{table_name}` (#{columns});\n"
-              end
+          # Process each ADD PRIMARY/UNIQUE/KEY clause separately
+          line.scan(/ADD\s+(PRIMARY KEY|UNIQUE KEY|KEY)\s+(?:[`"]([^`"]+)[`"])?\s*\(([^)]+)\)/i) do |key_type, key_name, columns|
+            key_name ||= "pk_#{table_name}"
+            columns = columns.gsub(/[`"]/i, '')
+            
+            if key_type == "PRIMARY KEY"
+              sqlite += "CREATE UNIQUE INDEX IF NOT EXISTS `pk_#{table_name}` ON `#{table_name}` (#{columns});\n"
+            elsif key_type == "UNIQUE KEY"
+              sqlite += "CREATE UNIQUE INDEX IF NOT EXISTS `#{key_name}` ON `#{table_name}` (#{columns});\n"
+            else
+              sqlite += "CREATE INDEX IF NOT EXISTS `#{key_name}` ON `#{table_name}` (#{columns});\n"
             end
           end
         elsif line.match?(/MODIFY/i)
-          # Skip ALTER TABLE MODIFY statements - SQLite doesn't support them
-          next
+          # Extract column name from MODIFY statement for potential column addition
+          if (match = line.match(/MODIFY\s+[`"]([^`"]+)[`"]/i))
+            column_name = match[1]
+            column_type = "TEXT" # Default type
+            
+            # Try to extract the type
+            if line.match?(/INTEGER|TEXT|REAL|BLOB|NULL/i)
+              column_type = line.match(/(INTEGER|TEXT|REAL|BLOB|NULL)/i)[1]
+            end
+            
+            # Add column if it doesn't exist (will be checked later)
+            missing_columns[table_name] ||= []
+            missing_columns[table_name] << [column_name, column_type]
+          end
         end
         next
       end
@@ -82,16 +95,24 @@ class MySQL2SQLiteConverter
           "#{$1}X#{$2}" # Convert 15X'150' to 15X150
         end
         
-        # Then handle any remaining X'...' literals
-        line = line.gsub(/X'([^']*)'/) do |match|
-          # Keep the X'...' format but ensure it's valid hex
-          hex_content = $1
-          if hex_content.match?(/[^0-9A-Fa-f]/)
-            # If it contains non-hex characters, convert to a regular string literal
-            "'#{hex_content.gsub("'", "''")}'"
-          else
-            match
-          end
+        # Handle email addresses with X'...' patterns before general X'...' processing
+        line = line.gsub(/([a-zA-Z0-9._%+-]+)X'([^']+)'@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/) do |match|
+          "#{$1}#{$2}@#{$3}" # Convert emailX'part'@domain.com to emailpart@domain.com
+        end
+        
+        # Handle single character X'...' literals that cause problems
+        line = line.gsub(/X'([A-Za-z0-9])'/) do |match|
+          "'#{$1}'" # Convert X'A' to 'A'
+        end
+        
+        # Handle multi-character non-hex X'...' literals
+        line = line.gsub(/X'([^']*[^0-9A-Fa-f][^']*)'/) do |match|
+          "'#{$1.gsub("'", "''")}'" # Convert X'abc' to 'abc'
+        end
+        
+        # Then handle any remaining X'...' literals (should be valid hex now)
+        line = line.gsub(/X'([0-9A-Fa-f]+)'/) do |match|
+          match # Keep valid hex literals
         end
         
         # Handle other string escaping
@@ -175,9 +196,8 @@ class MySQL2SQLiteConverter
       end
     end
     
-    # Add missing columns to tables if referenced in INSERT statements
-    # This helps with errors like "table wp_aioseo_posts has no column named description"
-    missing_columns = {}
+    # Initialize missing_columns hash if not already done
+    missing_columns ||= {}
     
     # Find INSERT statements and extract table and column names
     sqlite.scan(/INSERT INTO [`"]([^`"]+)[`"]\s*\(([^)]+)\)/i) do |table_name, columns_str|
@@ -189,16 +209,41 @@ class MySQL2SQLiteConverter
         
         if !missing.empty?
           missing_columns[table_name] ||= []
-          missing_columns[table_name].concat(missing)
+          missing_columns[table_name].concat(missing.map { |col| [col, "TEXT"] })
           missing_columns[table_name].uniq!
         end
       end
     end
     
+    # Add specific columns that are known to cause issues
+    ["wp_actionscheduler_actions", "wp_actionscheduler_logs"].each do |table|
+      if table_columns.key?(table) && !table_columns[table].include?("group_id")
+        missing_columns[table] ||= []
+        missing_columns[table] << ["group_id", "INTEGER"]
+      end
+    end
+    
+    ["wp_aioseo_posts"].each do |table|
+      if table_columns.key?(table) && !table_columns[table].include?("description")
+        missing_columns[table] ||= []
+        missing_columns[table] << ["description", "TEXT"]
+      end
+    end
+    
     # Add ALTER TABLE statements to add missing columns
     missing_columns.each do |table_name, columns|
-      columns.each do |column|
-        sqlite += "ALTER TABLE `#{table_name}` ADD COLUMN `#{column}` TEXT;\n"
+      columns.each do |column_info|
+        column_name = column_info.is_a?(Array) ? column_info[0] : column_info
+        column_type = column_info.is_a?(Array) ? column_info[1] : "TEXT"
+        
+        # Skip if column already exists in the table
+        next if table_columns[table_name]&.include?(column_name)
+        
+        sqlite += "ALTER TABLE `#{table_name}` ADD COLUMN `#{column_name}` #{column_type};\n"
+        
+        # Add to table_columns to prevent duplicate ALTER statements
+        table_columns[table_name] ||= []
+        table_columns[table_name] << column_name
       end
     end
 
@@ -217,15 +262,7 @@ class MySQL2SQLiteConverter
     # Replace hex values
     sqlite = sqlite.gsub(/0x([0-9A-Fa-f]+)/i, "X'\\1'")
     
-    # Fix problematic X'...' literals that contain non-hex characters
-    sqlite = sqlite.gsub(/X'([^']*)'/) do |match|
-      hex_content = $1
-      if hex_content.match?(/[^0-9A-Fa-f]/)
-        "'#{hex_content.gsub("'", "''")}'"
-      else
-        match
-      end
-    end
+    # Final cleanup pass for any remaining problematic patterns
     
     # Fix dimension patterns like 15X'150' that might have been missed
     sqlite = sqlite.gsub(/(\d+)X'(\d+)'/) do |match|
@@ -236,6 +273,23 @@ class MySQL2SQLiteConverter
     sqlite = sqlite.gsub(/([a-zA-Z0-9._%+-]+)X'([^']+)'@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/) do |match|
       "#{$1}#{$2}@#{$3}" # Convert emailX'part'@domain.com to emailpart@domain.com
     end
+    
+    # Handle single character X'...' literals that cause problems
+    sqlite = sqlite.gsub(/X'([A-Za-z0-9])'/) do |match|
+      "'#{$1}'" # Convert X'A' to 'A'
+    end
+    
+    # Handle multi-character non-hex X'...' literals
+    sqlite = sqlite.gsub(/X'([^']*[^0-9A-Fa-f][^']*)'/) do |match|
+      "'#{$1.gsub("'", "''")}'" # Convert X'abc' to 'abc'
+    end
+    
+    # Fix any standalone ALTER TABLE ADD PRIMARY KEY statements
+    sqlite = sqlite.gsub(/^ADD PRIMARY KEY/, "-- Skipped: ADD PRIMARY KEY")
+    sqlite = sqlite.gsub(/^ADD UNIQUE KEY/, "-- Skipped: ADD UNIQUE KEY")
+    
+    # Fix any standalone MODIFY statements
+    sqlite = sqlite.gsub(/^MODIFY/, "-- Skipped: MODIFY")
 
     sqlite
   end
