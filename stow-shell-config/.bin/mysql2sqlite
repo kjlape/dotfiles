@@ -1,0 +1,181 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+
+class MySQL2SQLiteConverter
+  def initialize
+    @current_table = ''
+    @keys = []
+  end
+
+  def convert(mysql_content)
+    sqlite = <<~HEADER
+      -- import to SQLite by running: sqlite3.exe db.sqlite3 -init sqlite.sql
+
+      PRAGMA journal_mode = MEMORY;
+      PRAGMA synchronous = OFF;
+      PRAGMA foreign_keys = OFF;
+      PRAGMA ignore_check_constraints = OFF;
+      PRAGMA auto_vacuum = NONE;
+      PRAGMA secure_delete = OFF;
+      BEGIN TRANSACTION;
+
+    HEADER
+
+    lines = mysql_content.split("\n")
+    skip_patterns = [
+      /^CREATE DATABASE/i,
+      /^USE/i,
+      /^\/\*/i,
+      /^--/i
+    ]
+
+    lines.each do |line|
+      line = line.strip
+
+      # Skip lines that match patterns in skip_patterns array
+      next if skip_patterns.any? { |pattern| pattern.match?(line) }
+
+      # Include all INSERT lines. Replace \' by ''
+      if line.match?(/^(INSERT|\()/i)
+        sqlite += line.gsub(/\\'/i, "''") + "\n"
+        next
+      end
+
+      # Print the CREATE line as is and capture the table name
+      if (match = line.match(/^\s*CREATE TABLE.*[`"](.*)[`"]/i))
+        @current_table = match[1]
+        sqlite += "\n" + line + "\n"
+        next
+      end
+
+      # Clean table end line
+      if line.start_with?(")")
+        sqlite += ");\n"
+        next
+      end
+
+      # Remove CONSTRAINT part from lines
+      line = line.gsub(/^CONSTRAINT [`'"][\w]+[`'"][\s]+/i, '')
+
+      # Replace "XXXXX KEY" by "KEY" except "PRIMARY KEY" "FOREIGN KEY" and "UNIQUE KEY"
+      line = line.gsub(/^(?!FOREIGN)(?!PRIMARY)(?!UNIQUE)\w+\s+KEY/i, 'KEY')
+
+      # Extract KEY lines for later processing
+      if (match = line.match(/^(UNIQUE\s+)?KEY\s+[`'"](\w+)[`'"]\s+\([`'"](\w+)[`'"]/i))
+        key_unique = match[1] || ""
+        key_name = match[2]
+        col_name = match[3]
+        @keys << "CREATE #{key_unique}INDEX `#{@current_table}_#{key_name}` ON `#{@current_table}` (`#{col_name}`);"
+        next
+      end
+
+      # Process field definition lines (not KEY lines and not lines starting with ")")
+      if line.match?(/^[^)]((?![\w]+\sKEY).)*$/i)
+        # Clear invalid keywords
+        line = line.gsub(/AUTO_INCREMENT|CHARACTER SET [^ ]+|UNSIGNED/i, "")
+        line = line.gsub(/DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP|COLLATE [^ ]+/i, "")
+        line = line.gsub(/COMMENT\s['"`].*['"`]/i, "")
+        line = line.gsub(/SET\([^)]+\)|ENUM[^)]+\)/i, "TEXT ")
+
+        # Clear MySQL-specific types
+        line = line.gsub(/int\([0-9]*\)/i, "INTEGER")
+        line = line.gsub(/varchar\([0-9]*\)|LONGTEXT/i, "TEXT")
+      end
+
+      sqlite += line + "\n" unless line.empty?
+    end
+
+    sqlite += "\n"
+
+    # Fix last table line with comma
+    sqlite = sqlite.gsub(/,\n\);/, "\n);")
+
+    # Include all gathered keys as CREATE INDEX
+    sqlite += "\n\n" + @keys.join("\n") + "\n\n"
+
+    # Re-enable foreign key check
+    sqlite += <<~FOOTER
+      COMMIT;
+      PRAGMA ignore_check_constraints = ON;
+      PRAGMA foreign_keys = ON;
+      PRAGMA journal_mode = WAL;
+      PRAGMA synchronous = NORMAL;
+    FOOTER
+
+    # Replace hex values
+    sqlite.gsub(/0x(\w+)/i, "X'\\1'")
+  end
+end
+
+def main
+  options = {}
+  
+  OptionParser.new do |opts|
+    opts.banner = "Usage: mysql2sqlite.rb [options] [input_file]"
+    opts.separator ""
+    opts.separator "MySQL to SQLite SQL converter"
+    opts.separator ""
+    opts.separator "Options:"
+
+    opts.on("-i", "--input FILE", "Input MySQL SQL file") do |file|
+      options[:input] = file
+    end
+
+    opts.on("-o", "--output FILE", "Output SQLite SQL file") do |file|
+      options[:output] = file
+    end
+
+    opts.on("-h", "--help", "Show this help message") do
+      puts opts
+      exit
+    end
+
+    opts.on("--version", "Show version") do
+      puts "MySQL to SQLite Ruby CLI v1.0.0"
+      puts "Converted from: https://github.com/ww9/mysql2sqlite"
+      exit
+    end
+  end.parse!
+
+  # Handle input file from arguments if not specified with -i
+  if ARGV.length > 0 && !options[:input]
+    options[:input] = ARGV[0]
+  end
+
+  # Read input
+  mysql_content = if options[:input]
+    unless File.exist?(options[:input])
+      STDERR.puts "Error: Input file '#{options[:input]}' not found"
+      exit 1
+    end
+    File.read(options[:input])
+  else
+    if STDIN.tty?
+      STDERR.puts "Error: No input provided. Use -i FILE or pipe input to stdin"
+      STDERR.puts "Run with -h for help"
+      exit 1
+    end
+    STDIN.read
+  end
+
+  # Convert
+  converter = MySQL2SQLiteConverter.new
+  sqlite_content = converter.convert(mysql_content)
+
+  # Write output
+  if options[:output]
+    File.write(options[:output], sqlite_content)
+    puts "Converted MySQL to SQLite. Output written to: #{options[:output]}"
+  else
+    puts sqlite_content
+  end
+
+rescue StandardError => e
+  STDERR.puts "Error: #{e.message}"
+  exit 1
+end
+
+if __FILE__ == $0
+  main
+end
