@@ -47,20 +47,24 @@ class MySQL2SQLiteConverter
 
       # Handle ALTER TABLE statements
       if line.match?(/^ALTER TABLE/i)
+        # Handle complex ALTER TABLE statements with multiple ADD PRIMARY KEY clauses
         if line.match?(/ADD PRIMARY KEY|ADD UNIQUE KEY|ADD KEY/i)
-          # Convert ALTER TABLE ADD PRIMARY/UNIQUE KEY to separate CREATE statements
-          if (match = line.match(/ALTER TABLE\s+[`"]([^`"]+)[`"]\s+ADD\s+(PRIMARY KEY|UNIQUE KEY|KEY)\s+(?:[`"]([^`"]+)[`"])?\s*\(([^)]+)\)/i))
-            table_name = match[1]
-            key_type = match[2]
-            key_name = match[3] || "pk_#{table_name}"
-            columns = match[4].gsub(/[`"]/i, '')
-            
-            if key_type == "PRIMARY KEY"
-              sqlite += "CREATE UNIQUE INDEX IF NOT EXISTS `pk_#{table_name}` ON `#{table_name}` (#{columns});\n"
-            elsif key_type == "UNIQUE KEY"
-              sqlite += "CREATE UNIQUE INDEX IF NOT EXISTS `#{key_name}` ON `#{table_name}` (#{columns});\n"
-            else
-              sqlite += "CREATE INDEX IF NOT EXISTS `#{key_name}` ON `#{table_name}` (#{columns});\n"
+          # Extract the table name first
+          table_name = line.match(/ALTER TABLE\s+[`"]([^`"]+)[`"]/i)&.[](1)
+          
+          if table_name
+            # Process each ADD PRIMARY/UNIQUE/KEY clause separately
+            line.scan(/ADD\s+(PRIMARY KEY|UNIQUE KEY|KEY)\s+(?:[`"]([^`"]+)[`"])?\s*\(([^)]+)\)/i) do |key_type, key_name, columns|
+              key_name ||= "pk_#{table_name}"
+              columns = columns.gsub(/[`"]/i, '')
+              
+              if key_type == "PRIMARY KEY"
+                sqlite += "CREATE UNIQUE INDEX IF NOT EXISTS `pk_#{table_name}` ON `#{table_name}` (#{columns});\n"
+              elsif key_type == "UNIQUE KEY"
+                sqlite += "CREATE UNIQUE INDEX IF NOT EXISTS `#{key_name}` ON `#{table_name}` (#{columns});\n"
+              else
+                sqlite += "CREATE INDEX IF NOT EXISTS `#{key_name}` ON `#{table_name}` (#{columns});\n"
+              end
             end
           end
         elsif line.match?(/MODIFY/i)
@@ -73,12 +77,18 @@ class MySQL2SQLiteConverter
       # Include all INSERT lines. Replace \' by '' and handle X'...' hex literals
       if line.match?(/^(INSERT|\()/i)
         # Fix X'...' hex literals by ensuring they're properly formatted
+        # First, handle the common pattern of dimensions like 15X'150' or 30X'225'
+        line = line.gsub(/(\d+)X'(\d+)'/) do |match|
+          "#{$1}X#{$2}" # Convert 15X'150' to 15X150
+        end
+        
+        # Then handle any remaining X'...' literals
         line = line.gsub(/X'([^']*)'/) do |match|
           # Keep the X'...' format but ensure it's valid hex
           hex_content = $1
           if hex_content.match?(/[^0-9A-Fa-f]/)
             # If it contains non-hex characters, convert to a regular string literal
-            "'#{hex_content}'"
+            "'#{hex_content.gsub("'", "''")}'"
           else
             match
           end
@@ -157,9 +167,38 @@ class MySQL2SQLiteConverter
       if (match = key_statement.match(/ON\s+`([^`]+)`\s+\(`([^`]+)`\)/i))
         table_name = match[1]
         column_name = match[2]
+        
+        # Only include keys for columns that exist in their tables
         table_columns.key?(table_name) && table_columns[table_name].include?(column_name)
       else
         true # Keep keys we couldn't parse
+      end
+    end
+    
+    # Add missing columns to tables if referenced in INSERT statements
+    # This helps with errors like "table wp_aioseo_posts has no column named description"
+    missing_columns = {}
+    
+    # Find INSERT statements and extract table and column names
+    sqlite.scan(/INSERT INTO [`"]([^`"]+)[`"]\s*\(([^)]+)\)/i) do |table_name, columns_str|
+      columns = columns_str.split(',').map { |col| col.gsub(/[`"\s]/i, '') }
+      
+      if table_columns.key?(table_name)
+        # Find columns that are in the INSERT but not in the CREATE TABLE
+        missing = columns.select { |col| !table_columns[table_name].include?(col) }
+        
+        if !missing.empty?
+          missing_columns[table_name] ||= []
+          missing_columns[table_name].concat(missing)
+          missing_columns[table_name].uniq!
+        end
+      end
+    end
+    
+    # Add ALTER TABLE statements to add missing columns
+    missing_columns.each do |table_name, columns|
+      columns.each do |column|
+        sqlite += "ALTER TABLE `#{table_name}` ADD COLUMN `#{column}` TEXT;\n"
       end
     end
 
@@ -186,6 +225,16 @@ class MySQL2SQLiteConverter
       else
         match
       end
+    end
+    
+    # Fix dimension patterns like 15X'150' that might have been missed
+    sqlite = sqlite.gsub(/(\d+)X'(\d+)'/) do |match|
+      "#{$1}X#{$2}" # Convert 15X'150' to 15X150
+    end
+    
+    # Fix email addresses with X'...' patterns
+    sqlite = sqlite.gsub(/([a-zA-Z0-9._%+-]+)X'([^']+)'@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/) do |match|
+      "#{$1}#{$2}@#{$3}" # Convert emailX'part'@domain.com to emailpart@domain.com
     end
 
     sqlite
