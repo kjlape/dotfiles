@@ -27,8 +27,17 @@ class MySQL2SQLiteConverter
       /^CREATE DATABASE/i,
       /^USE/i,
       /^\/\*/i,
-      /^--/i
+      /^--/i,
+      /^SET /i,
+      /^START TRANSACTION/i,
+      /^COMMIT/i,
+      /^LOCK TABLES/i,
+      /^UNLOCK TABLES/i
     ]
+
+    # Track tables and their columns for index validation
+    table_columns = {}
+    current_create_table = false
 
     lines.each do |line|
       line = line.strip
@@ -36,23 +45,72 @@ class MySQL2SQLiteConverter
       # Skip lines that match patterns in skip_patterns array
       next if skip_patterns.any? { |pattern| pattern.match?(line) }
 
-      # Include all INSERT lines. Replace \' by ''
+      # Handle ALTER TABLE statements
+      if line.match?(/^ALTER TABLE/i)
+        if line.match?(/ADD PRIMARY KEY|ADD UNIQUE KEY|ADD KEY/i)
+          # Convert ALTER TABLE ADD PRIMARY/UNIQUE KEY to separate CREATE statements
+          if (match = line.match(/ALTER TABLE\s+[`"]([^`"]+)[`"]\s+ADD\s+(PRIMARY KEY|UNIQUE KEY|KEY)\s+(?:[`"]([^`"]+)[`"])?\s*\(([^)]+)\)/i))
+            table_name = match[1]
+            key_type = match[2]
+            key_name = match[3] || "pk_#{table_name}"
+            columns = match[4].gsub(/[`"]/i, '')
+            
+            if key_type == "PRIMARY KEY"
+              sqlite += "CREATE UNIQUE INDEX IF NOT EXISTS `pk_#{table_name}` ON `#{table_name}` (#{columns});\n"
+            elsif key_type == "UNIQUE KEY"
+              sqlite += "CREATE UNIQUE INDEX IF NOT EXISTS `#{key_name}` ON `#{table_name}` (#{columns});\n"
+            else
+              sqlite += "CREATE INDEX IF NOT EXISTS `#{key_name}` ON `#{table_name}` (#{columns});\n"
+            end
+          end
+        elsif line.match?(/MODIFY/i)
+          # Skip ALTER TABLE MODIFY statements - SQLite doesn't support them
+          next
+        end
+        next
+      end
+
+      # Include all INSERT lines. Replace \' by '' and handle X'...' hex literals
       if line.match?(/^(INSERT|\()/i)
-        sqlite += line.gsub(/\\'/i, "''") + "\n"
+        # Fix X'...' hex literals by ensuring they're properly formatted
+        line = line.gsub(/X'([^']*)'/) do |match|
+          # Keep the X'...' format but ensure it's valid hex
+          hex_content = $1
+          if hex_content.match?(/[^0-9A-Fa-f]/)
+            # If it contains non-hex characters, convert to a regular string literal
+            "'#{hex_content}'"
+          else
+            match
+          end
+        end
+        
+        # Handle other string escaping
+        line = line.gsub(/\\'/i, "''")
+        
+        sqlite += line + "\n"
         next
       end
 
       # Print the CREATE line as is and capture the table name
       if (match = line.match(/^\s*CREATE TABLE.*[`"](.*)[`"]/i))
         @current_table = match[1]
+        current_create_table = true
+        table_columns[@current_table] = []
         sqlite += "\n" + line + "\n"
         next
       end
 
       # Clean table end line
-      if line.start_with?(")")
+      if line.start_with?(")") && !line.include?("(")
+        current_create_table = false
         sqlite += ");\n"
         next
+      end
+
+      # Collect column names during CREATE TABLE
+      if current_create_table && (match = line.match(/^\s*[`"]([^`"]+)[`"]/))
+        column_name = match[1]
+        table_columns[@current_table] << column_name unless column_name.nil?
       end
 
       # Remove CONSTRAINT part from lines
@@ -66,7 +124,7 @@ class MySQL2SQLiteConverter
         key_unique = match[1] || ""
         key_name = match[2]
         col_name = match[3]
-        @keys << "CREATE #{key_unique}INDEX `#{@current_table}_#{key_name}` ON `#{@current_table}` (`#{col_name}`);"
+        @keys << "CREATE #{key_unique}INDEX IF NOT EXISTS `#{@current_table}_#{key_name}` ON `#{@current_table}` (`#{col_name}`);"
         next
       end
 
@@ -80,7 +138,10 @@ class MySQL2SQLiteConverter
 
         # Clear MySQL-specific types
         line = line.gsub(/int\([0-9]*\)/i, "INTEGER")
+        line = line.gsub(/bigint\([0-9]*\)/i, "INTEGER")
         line = line.gsub(/varchar\([0-9]*\)|LONGTEXT/i, "TEXT")
+        line = line.gsub(/datetime/i, "TEXT")
+        line = line.gsub(/timestamp/i, "TEXT")
       end
 
       sqlite += line + "\n" unless line.empty?
@@ -91,8 +152,19 @@ class MySQL2SQLiteConverter
     # Fix last table line with comma
     sqlite = sqlite.gsub(/,\n\);/, "\n);")
 
-    # Include all gathered keys as CREATE INDEX
-    sqlite += "\n\n" + @keys.join("\n") + "\n\n"
+    # Filter out keys for columns that don't exist in their tables
+    valid_keys = @keys.select do |key_statement|
+      if (match = key_statement.match(/ON\s+`([^`]+)`\s+\(`([^`]+)`\)/i))
+        table_name = match[1]
+        column_name = match[2]
+        table_columns.key?(table_name) && table_columns[table_name].include?(column_name)
+      else
+        true # Keep keys we couldn't parse
+      end
+    end
+
+    # Include all valid gathered keys as CREATE INDEX
+    sqlite += "\n\n" + valid_keys.join("\n") + "\n\n"
 
     # Re-enable foreign key check
     sqlite += <<~FOOTER
@@ -104,7 +176,19 @@ class MySQL2SQLiteConverter
     FOOTER
 
     # Replace hex values
-    sqlite.gsub(/0x(\w+)/i, "X'\\1'")
+    sqlite = sqlite.gsub(/0x([0-9A-Fa-f]+)/i, "X'\\1'")
+    
+    # Fix problematic X'...' literals that contain non-hex characters
+    sqlite = sqlite.gsub(/X'([^']*)'/) do |match|
+      hex_content = $1
+      if hex_content.match?(/[^0-9A-Fa-f]/)
+        "'#{hex_content.gsub("'", "''")}'"
+      else
+        match
+      end
+    end
+
+    sqlite
   end
 end
 
