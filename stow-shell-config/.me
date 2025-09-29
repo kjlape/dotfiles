@@ -37,6 +37,7 @@ alias trim='tr -d "\n"'
 alias rebash="source ~/.me"
 alias screencast='PROMPT="$SCREENCAST_PROMPT"; clear'
 alias o=overmind
+alias dockc="docker compose"
 alias v=vim
 alias vs='vim -S $(git dotgit | trim)/.vim-sessions/$(git rev-parse --abbrev-ref HEAD | trim).vim'
 alias mvims='mvim -S $(git dotgit | trim)/.vim-sessions/$(git rev-parse --abbrev-ref HEAD | trim).vim'
@@ -69,6 +70,10 @@ alias select-history='$(history | selecta | sed "s/^ *[0-9]* *//g")'
 alias frazzled='vim ~/.frazzle-dazzle.md'
 alias defrazzle='bat ~/.frazzle-dazzle.md'
 alias awslocal='AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=${DEFAULT_REGION:-$AWS_DEFAULT_REGION} aws --endpoint-url=http://${LOCALSTACK_HOST:-localhost}:4566'
+
+alias tebako='docker run -v $PWD:/pwd \
+  -t ghcr.io/tamatebako/tebako-ubuntu-20.04:latest \
+  tebako'
 
 editor() {
   export EDITOR="$1"
