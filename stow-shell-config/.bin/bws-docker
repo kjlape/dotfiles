@@ -1,0 +1,1 @@
+docker run -e BWS_ACCESS_TOKEN -e BWS_PROJECT --rm -it bitwarden/bws "$@"
