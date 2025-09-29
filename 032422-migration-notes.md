@@ -1,5 +1,5 @@
 Steps:
-- This first https://github.com/pingortle/dotfiles
+- This first https://github.com/kjlape/dotfiles
 - Ran the yolo script
 - Running git commands forces macOS to install dev tools, so waiting for that now… leaving for dinner
 - Bootstrap script needs to run brew commands or set up an alias for brew; couldn’t find the binary

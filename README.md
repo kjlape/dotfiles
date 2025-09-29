@@ -11,7 +11,7 @@ Run `./bootstrap.sh`
 Do not run this unless you're me.
 
 ```
-/bin/bash -c "$(curl https://raw.githubusercontent.com/pingortle/dotfiles/master/yolo.sh)"
+/bin/bash -c "$(curl https://raw.githubusercontent.com/kjlape/dotfiles/master/yolo.sh)"
 ```
 
 ## Guarantee

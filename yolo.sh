@@ -1,7 +1,7 @@
-mkdir -p ~/dev/pingortle
-cd ~/dev/pingortle
+mkdir -p ~/dev/kjlape
+cd ~/dev/kjlape
 
-git clone git@github.com:pingortle/dotfiles.git
+git clone git@github.com:kjlape/dotfiles.git
 
 cd dotfiles
 
