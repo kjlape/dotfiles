@@ -75,7 +75,7 @@ endif
   Plug 'vim-airline/vim-airline'
   Plug 'vim-ruby/vim-ruby'
   Plug 'vim-scripts/bats.vim'
-  " Plug 'w0rp/ale'
+  Plug 'dense-analysis/ale'
   Plug 'zhaozg/vim-diagram'
 
   Plug 'vim-airline/vim-airline-themes'
