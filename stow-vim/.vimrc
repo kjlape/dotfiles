@@ -28,6 +28,7 @@ endif
   Plug 'junegunn/limelight.vim'
 "   Plug 'AndrewRadev/splitjoin.vim'
   Plug 'alligator/accent.vim'
+  Plug 'augmentcode/augment.vim'
   Plug 'airblade/vim-gitgutter'
   Plug 'airblade/vim-localorie'
   Plug 'DataWraith/auto_mkdir'
