@@ -24,3 +24,10 @@ tags
 
 .aider*
 !.aider.conf.yml
+
+# Backups
+*.bak
+*.bkp
+*.bk
+*~
+*.backup
