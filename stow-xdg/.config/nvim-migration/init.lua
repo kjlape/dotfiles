@@ -1,3 +1,6 @@
+vim.o.exrc = true
+vim.o.secure = true
+
 -- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
@@ -13,64 +16,12 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 -- Set leader key (should be before lazy setup)
-vim.g.mapleader = " "
+vim.g.mapleader = "\\"
+vim.opt.termguicolors = true
 
 -- Plugin specifications
 require("lazy").setup({
   -- Linting and formatting
-  {
-    "nvimtools/none-ls.nvim",
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-    },
-    config = function()
-      local null_ls = require("null-ls")
-      local formatting = null_ls.builtins.formatting
-      local diagnostics = null_ls.builtins.diagnostics
-
-      null_ls.setup({
-        sources = {
-          -- Formatting
-          formatting.prettier.with({
-            extra_filetypes = { "vue" },
-          }),
-          formatting.standardrb,
-          formatting.terraform_fmt,
-          formatting.rustfmt,
-          
-          -- Diagnostics
-          diagnostics.standardrb,
-          diagnostics.reek,
-          diagnostics.eslint,
-          diagnostics.jq,
-          diagnostics.terraform_validate,
-          diagnostics.swiftlint,
-
-          -- Remove trailing whitespace and newlines
-          formatting.trim_whitespace,
-          formatting.trim_newlines,
-        },
-        -- Autofix on save
-        on_attach = function(client, bufnr)
-          if client.supports_method("textDocument/formatting") then
-            vim.api.nvim_create_autocmd("BufWritePre", {
-              buffer = bufnr,
-              callback = function()
-                vim.lsp.buf.format({ 
-                  bufnr = bufnr,
-                  filter = function(c)
-                    return c.name == "null-ls"
-                  end,
-                })
-              end,
-            })
-          end
-        end,
-      })
-    end,
-  },
-
-  -- Mason for managing LSP servers, linters, and formatters
   {
     "williamboman/mason.nvim",
     build = ":MasonUpdate",
@@ -81,12 +32,13 @@ require("lazy").setup({
     config = function()
       require("mason-lspconfig").setup({
         ensure_installed = {
-          "ruby_ls",
+          "ruby_lsp",
           "standardrb",
         },
       })
     end,
   },
+
   -- Core plugins
   { "tpope/vim-sensible" },
   { "tpope/vim-commentary" },
@@ -100,14 +52,44 @@ require("lazy").setup({
   { "tpope/vim-endwise" },
   { "tpope/vim-rails" },
   { "tpope/vim-rbenv" },
-  
+
   -- UI and themes
-  { "vim-airline/vim-airline" },
-  { "vim-airline/vim-airline-themes" },
+  {
+    "nvim-lualine/lualine.nvim",
+    dependencies = { 'nvim-tree/nvim-web-devicons' },
+    config = function()
+      require('lualine').setup()
+    end
+  },
   { "alligator/accent.vim" },
   { "jeffkreeftmeijer/vim-dim" },
   { "jaredgorski/fogbell.vim" },
-  
+  {
+    "f-person/auto-dark-mode.nvim",
+    opts = {},
+  },
+  {
+    "alexxGmZ/e-ink.nvim",
+    priority = 1000,
+    config = function()
+      require("e-ink").setup()
+      vim.cmd.colorscheme "e-ink"
+    end
+  },
+  {
+    "folke/twilight.nvim",
+    opts = {}
+  },
+  {
+    "folke/zen-mode.nvim",
+    opts = {}
+  },
+  {
+    "MeanderingProgrammer/render-markdown.nvim",
+    dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-tree/nvim-web-devicons" },
+    opts = {},
+  },
+
   -- Fuzzy finding
   {
     "junegunn/fzf.vim",
@@ -115,10 +97,10 @@ require("lazy").setup({
       "junegunn/fzf",
     },
   },
-  
+
   -- Git integration
   { "airblade/vim-gitgutter" },
-  
+
   -- LSP and completion
   {
     "neovim/nvim-lspconfig",
@@ -129,13 +111,13 @@ require("lazy").setup({
       "hrsh7th/cmp-path",
     },
   },
-  
+
   -- Treesitter
   {
     "nvim-treesitter/nvim-treesitter",
     build = ":TSUpdate",
   },
-  
+
   -- Telescope
   {
     "nvim-telescope/telescope.nvim",
@@ -143,14 +125,21 @@ require("lazy").setup({
       "nvim-lua/plenary.nvim",
     },
   },
-  
+
   -- Language specific
   { "vim-ruby/vim-ruby" },
   { "rust-lang/rust.vim" },
   { "neovimhaskell/haskell-vim" },
   { "urbit/hoon.vim" },
   { "vim-scripts/bats.vim" },
-  
+
+  -- Markdown
+  {
+    "bullets-vim/bullets.vim",
+    config = function()
+    end,
+  },
+
   -- Text objects
   {
     "kana/vim-textobj-user",
@@ -158,7 +147,7 @@ require("lazy").setup({
       "nelstrom/vim-textobj-rubyblock",
     },
   },
-  
+
   -- Writing and focus
   {
     "junegunn/goyo.vim",
@@ -166,7 +155,7 @@ require("lazy").setup({
       "junegunn/limelight.vim",
     },
   },
-  
+
   -- Obsidian integration
   {
     "epwalsh/obsidian.nvim",
@@ -174,14 +163,15 @@ require("lazy").setup({
       "nvim-lua/plenary.nvim",
     },
   },
-  
+
   -- Additional tools
   { "alvan/vim-closetag" },
   { "christoomey/vim-tmux-navigator" },
   { "DataWraith/auto_mkdir" },
-  { "danchoi/ri.vim" },
+  -- { "danchoi/ri.vim" },
   { "liuchengxu/graphviz.vim" },
-  
+  { "janko-m/vim-test" },
+
   -- AI and enhancement tools
   {
     "dense-analysis/neural",
@@ -211,6 +201,42 @@ require("lazy").setup({
       })
     end,
   },
+  {
+    "supermaven-inc/supermaven-nvim",
+    config = function()
+      require("supermaven-nvim").setup({})
+    end,
+  },
+  {
+    "nekowasabi/aider.vim",
+    dependencies = "vim-denops/denops.vim",
+    config = function()
+      vim.g.aider_command = 'aider --no-auto-commits'
+      vim.g.aider_buffer_open_type = 'floating'
+      vim.g.aider_floatwin_width = 100
+      vim.g.aider_floatwin_height = 20
+
+      vim.api.nvim_create_autocmd('User',
+        {
+          pattern = 'AiderOpen',
+          callback =
+              function(args)
+                vim.keymap.set('t', '<Esc>', '<C-\\><C-n>', { buffer = args.buf })
+                vim.keymap.set('n', '<Esc>', '<cmd>AiderHide<CR>', { buffer = args.buf })
+              end
+        })
+      vim.api.nvim_set_keymap('n', '<leader>at', ':AiderRun<CR>', { noremap = true, silent = true })
+      vim.api.nvim_set_keymap('n', '<leader>aa', ':AiderAddCurrentFile<CR>', { noremap = true, silent = true })
+      vim.api.nvim_set_keymap('n', '<leader>ar', ':AiderAddCurrentFileReadOnly<CR>', { noremap = true, silent = true })
+      vim.api.nvim_set_keymap('n', '<leader>aw', ':AiderAddWeb<CR>', { noremap = true, silent = true })
+      vim.api.nvim_set_keymap('n', '<leader>ax', ':AiderExit<CR>', { noremap = true, silent = true })
+      vim.api.nvim_set_keymap('n', '<leader>ai', ':AiderAddIgnoreCurrentFile<CR>', { noremap = true, silent = true })
+      vim.api.nvim_set_keymap('n', '<leader>aI', ':AiderOpenIgnore<CR>', { noremap = true, silent = true })
+      vim.api.nvim_set_keymap('n', '<leader>aI', ':AiderPaste<CR>', { noremap = true, silent = true })
+      vim.api.nvim_set_keymap('n', '<leader>ah', ':AiderHide<CR>', { noremap = true, silent = true })
+      vim.api.nvim_set_keymap('v', '<leader>av', ':AiderVisualTextWithPrompt<CR>', { noremap = true, silent = true })
+    end
+  }
 })
 
 -- Basic settings
@@ -228,8 +254,9 @@ vim.opt.smartcase = true
 vim.opt.grepprg = "rg --vimgrep --smart-case --follow"
 
 -- Theme configuration
-vim.cmd.colorscheme("accent")
+-- vim.cmd.colorscheme("accent")
 vim.g.airline_theme = "minimalist"
+
 
 -- Plugin configurations
 -- vim-closetag
@@ -243,7 +270,7 @@ vim.g.closetag_close_shortcut = "<leader>>"
 
 -- vim-test configuration
 vim.g["test#strategy"] = "dispatch"
-vim.g["test#custom_runners"] = { Ruby = { "DHH" } }
+-- vim.g["test#custom_runners"] = { Ruby = { "DHH" } }
 
 -- Keymaps
 local function map(mode, lhs, rhs, opts)
@@ -261,8 +288,39 @@ map("n", "<cr><cr>", ":TestLast<CR>")
 map("n", "<leader>f", ":FZF<CR>")
 map("n", "<leader>b", ":Buffers<CR>")
 
+-- Git mappings
+map("n", "<leader>g", ":Git<CR>")
+
+-- UI refinements
+map("n", "<leader>]", ":set nowrap<CR>")
+map("n", "<leader>[", ":set wrap linebreak<CR>")
+map("n", "<leader>/", ":noh<CR>")
+
+-- -- Toggle checkbox
+-- vim.keymap.set('n', '<leader>x', function()
+--   local line = vim.fn.getline('.')
+--   if line:match('%- %[ %]') then
+--     vim.fn.setline('.', line:gsub('%- %[ %]', '- [x]'))
+--   elseif line:match('%- %[x%]') then
+--     vim.fn.setline('.', line:gsub('%- %[x%]', '- [ ]'))
+--   end
+-- end, { desc = 'Toggle checkbox' })
+
 -- LSP configuration
 local lspconfig = require("lspconfig")
+-- vim.lsp.enable('herb_ls')
+
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "eruby", "erb" },
+  callback = function()
+    vim.lsp.start({
+      name = "herb-language-server",
+      cmd = { "herb-language-server", "--stdio" },
+      root_dir = vim.fs.dirname(vim.fs.find({ ".git", "Gemfile" }, { upward = true })[1]),
+      capabilities = require('cmp_nvim_lsp').default_capabilities(),
+    })
+  end,
+})
 
 -- Sourcekit setup
 lspconfig.sourcekit.setup({
@@ -276,50 +334,50 @@ lspconfig.sourcekit.setup({
   root_dir = function(filename, _)
     local util = require("lspconfig.util")
     return util.root_pattern("buildServer.json")(filename)
-      or util.root_pattern("*.xcodeproj", "*.xcworkspace")(filename)
-      or util.find_git_ancestor(filename)
-      or util.root_pattern("Package.swift")(filename)
+        or util.root_pattern("*.xcodeproj", "*.xcworkspace")(filename)
+        or util.find_git_ancestor(filename)
+        or util.root_pattern("Package.swift")(filename)
   end,
 })
 
 -- Ruby LSP setup
-local function add_ruby_deps_command(client, bufnr)
-  vim.api.nvim_buf_create_user_command(bufnr, "ShowRubyDeps", function(opts)
-    local params = vim.lsp.util.make_text_document_params()
-    local showAll = opts.args == "all"
+-- local function add_ruby_deps_command(client, bufnr)
+--   vim.api.nvim_buf_create_user_command(bufnr, "ShowRubyDeps", function(opts)
+--     local params = vim.lsp.util.make_text_document_params()
+--     local showAll = opts.args == "all"
 
-    client.request("rubyLsp/workspace/dependencies", params, function(error, result)
-      if error then
-        print("Error showing deps: " .. error)
-        return
-      end
+--     client.request("rubyLsp/workspace/dependencies", params, function(error, result)
+--       if error then
+--         print("Error showing deps: " .. error)
+--         return
+--       end
 
-      local qf_list = {}
-      for _, item in ipairs(result) do
-        if showAll or item.dependency then
-          table.insert(qf_list, {
-            text = string.format("%s (%s) - %s", item.name, item.version, item.dependency),
-            filename = item.path
-          })
-        end
-      end
+--       local qf_list = {}
+--       for _, item in ipairs(result) do
+--         if showAll or item.dependency then
+--           table.insert(qf_list, {
+--             text = string.format("%s (%s) - %s", item.name, item.version, item.dependency),
+--             filename = item.path
+--           })
+--         end
+--       end
 
-      vim.fn.setqflist(qf_list)
-      vim.cmd('copen')
-    end, bufnr)
-  end,
-  {nargs = "?", complete = function() return {"all"} end})
-end
+--       vim.fn.setqflist(qf_list)
+--       vim.cmd('copen')
+--     end, bufnr)
+--   end,
+--   {nargs = "?", complete = function() return {"all"} end})
+-- end
 
-lspconfig.ruby_lsp.setup({
-  init_options = {
-    formatter = 'standard',
-    linters = { 'standard' },
-  },
-  on_attach = function(client, bufnr)
-    add_ruby_deps_command(client, bufnr)
-  end,
-})
+-- lspconfig.ruby_lsp.setup({
+--   init_options = {
+--     formatter = 'standard',
+--     linters = { 'standard' },
+--   },
+--   on_attach = function(client, bufnr)
+--     add_ruby_deps_command(client, bufnr)
+--   end,
+-- })
 
 -- Completion setup
 local cmp = require('cmp')
@@ -328,9 +386,10 @@ cmp.setup({
     { name = 'nvim_lsp' },
     { name = 'buffer' },
     { name = 'path' },
+    { name = 'render-markdown' },
   }),
   mapping = cmp.mapping.preset.insert({
-    ['<CR>'] = cmp.mapping.confirm({ select = true })
+    ['<CR>'] = cmp.mapping.confirm({ select = true }),
   }),
 })
 
@@ -351,7 +410,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
     vim.api.nvim_create_autocmd("BufWritePre", {
       buffer = args.buf,
       callback = function()
-        vim.lsp.buf.format {async = false, id = args.data.client_id }
+        vim.lsp.buf.format { async = false, id = args.data.client_id }
       end,
     })
   end
