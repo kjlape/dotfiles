@@ -3,7 +3,6 @@
 # Lossless audio extraction script using ffmpeg
 # Usage: <script name> input.mp4 [output.aac]
 
-# Check if input file is provided
 if [ $# -lt 1 ]; then
     echo "Usage: $0 input.mp4 [output.aac]"
     exit 1
