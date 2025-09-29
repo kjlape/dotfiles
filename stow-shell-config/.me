@@ -1,6 +1,7 @@
 # vim:set ft=sh:
 
 export CLICOLOR=1
+export NVIM_APPNAME=nvim-migration
 export EDITOR=nvim
 export XDG_CONFIG_HOME="$HOME/.config"
 export RIPGREP_CONFIG_PATH="$XDG_CONFIG_HOME/ripgrep/.ripgreprc"
@@ -59,6 +60,7 @@ alias aws-date='date -v +3M -u +"%m/%d/%Y %H:%M:%SZ"'
 alias doteb='dotenv -f .env.eb eb'
 alias blank='printf "\n%.0s" {1..$(tput lines)}'
 alias nvim-migration='NVIM_APPNAME=nvim-migration nvim'
+alias nvim-legacy='NVIM_APPNAME=nvim nvim'
 
 alias la="ls -a"
 alias be="bundle exec"
