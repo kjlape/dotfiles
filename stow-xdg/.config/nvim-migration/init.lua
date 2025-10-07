@@ -394,14 +394,14 @@ cmp.setup({
 })
 
 -- Obsidian setup
-require("obsidian").setup({
-  workspaces = {
-    {
-      name = "default",
-      path = "~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Default"
-    }
-  }
-})
+-- require("obsidian").setup({
+--   workspaces = {
+--     {
+--       name = "default",
+--       path = "~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Default"
+--     }
+--   }
+-- })
 
 -- Format on save
 vim.api.nvim_create_autocmd("LspAttach", {
