@@ -2,6 +2,10 @@
 	email = kaleb.lape@gmail.com
 	name = Kaleb Lape
 	signingkey = 865E9268C740BD76
+[includeIf "hasconfig:remote.*.url:*.darwin*"]
+    path = ~/.gitconfig-darwin
+[includeIf "hasconfig:remote.*.url:*.linux*"]
+    path = ~/.gitconfig-linux
 [github]
 	user = kjlape
 [color]
@@ -72,12 +76,6 @@
 	autoupdate = true
 [push]
 	default = current
-[credential "https://github.com"]
-	helper = !/opt/homebrew/bin/gh auth git-credential
-[credential "https://gist.github.com"]
-	helper = !/opt/homebrew/bin/gh auth git-credential
-[gpg]
-	program = /opt/homebrew/bin/gpg
 [filter "lfs"]
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process

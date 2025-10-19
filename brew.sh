@@ -2,24 +2,24 @@
 set -e
 
 # Install brew
-command -v brew || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# command -v brew || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # Freshen brew
-brew update
-brew upgrade
+# brew update
+# brew upgrade
 
 # Essentials
 # brew install ctags
 brew install bat
 brew install bison
-brew install fzf && \
-  "$(brew --prefix)"/opt/fzf/install --xdg --all
-brew install git
+#brew install fzf && \
+#  "$(brew --prefix)"/opt/fzf/install --xdg --all
+# brew install git
 brew install git-lfs
 brew install delta # fancy git diff
 brew install gpg
-brew install pinentry-mac
-brew install htop
+# brew install pinentry-mac
+brew install btop
 brew install shellcheck
 
 # Manage dotfiles
@@ -31,7 +31,7 @@ brew install rbenv ruby-build
 brew install nodenv node-build
 
 # Manage my apps
-brew install mas
+# brew install mas
 
 # Productivity
 brew install tmux
@@ -46,12 +46,12 @@ brew install act
 # brew install ievms
 
 # GUI
-brew install --cask discord || true
-brew install --cask docker || true
-brew install --cask macvim || true # "... || true" -> continue on error
-brew install --cask rectangle || true
-brew install --cask google-chrome || true
-brew install --cask 1password || true
+# brew install --cask discord || true
+# brew install --cask docker || true
+# brew install --cask macvim || true # "... || true" -> continue on error
+# brew install --cask rectangle || true
+# brew install --cask google-chrome || true
+# brew install --cask 1password || true
 # brew cask install virtualbox || true # requires sudo
 # brew cask install virtualbox-extension-pack || true
 # brew cask install licecap || true

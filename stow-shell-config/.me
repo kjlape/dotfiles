@@ -7,8 +7,10 @@ export XDG_CONFIG_HOME="$HOME/.config"
 export RIPGREP_CONFIG_PATH="$XDG_CONFIG_HOME/ripgrep/.ripgreprc"
 export GPG_TTY=$(tty)
 
-setopt SHARE_HISTORY
-setopt EXTENDED_HISTORY
+if command -v setopt &>/dev/null; then
+  setopt SHARE_HISTORY
+  setopt EXTENDED_HISTORY
+fi
 export HISTFILE=$HOME/.zsh_history
 export HISTSIZE=1000000
 export SAVEHIST=1000000000
@@ -33,7 +35,7 @@ export DISABLE_SPRING=1
 # source /usr/local/etc/bash_completion.d/git-prompt.sh
 
 [ -f $HOME/.secrets ] && source $HOME/.secrets
-source $HOME/.colors
+# . $HOME/.colors
 
 alias diff="git diff --no-index"
 alias trim='tr -d "\n"'

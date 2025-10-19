@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eux
+set -ux
 
 for dir in stow-*/
 do
