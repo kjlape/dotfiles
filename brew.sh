@@ -81,12 +81,12 @@ brew install act
 
 # GUI (use brew on macOS, fallback to flatpak then omarchy on Linux)
 install_gui discord com.discordapp.Discord
-install_gui docker
-install_gui google-chrome com.google.Chrome
-install_gui 1password
 if [[ "$OS" == "Darwin" ]]; then
+  brew install --cask 1password || true
   brew install --cask macvim || true
   brew install --cask rectangle || true
+  brew install --cask google-chrome || true
+  brew install --cask docker || true
 fi
 # brew cask install virtualbox || true # requires sudo
 # brew cask install virtualbox-extension-pack || true
