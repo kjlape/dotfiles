@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+flatpak install "$(flatpak search "$@" | fzf | awk '{print $1}')"

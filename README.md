@@ -18,4 +18,4 @@ Do not run this unless you're me.
 
 **Works On My Machine™** guaranteed! 👍
 
-This configuration is currently macOS only. I've made no attempts to make it cross platform in any way.
+Supports macOS and Linux (Arch/Omarchy). On Linux, uses Linuxbrew as the primary package manager with Flatpak and `omarchy pkg` as fallbacks for GUI applications.

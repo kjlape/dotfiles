@@ -33,12 +33,22 @@ if [[ "$OR_APP_NAME" != "Aider" ]]; then
   # Source Cargo environment
   cmd_exists cargo && . "$HOME/.cargo/env"
 
-  export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
+  if cmd_exists brew; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+      export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
+    else
+      export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@3)"
+    fi
+  fi
 fi
 
 cmd_exists op && eval "$(op completion zsh)"; compdef _op op
 
 # Added by Pear Runtime, configures system with Pear CLI
-export PATH="/Users/kaleblape/Library/Application Support/pear/bin":$PATH
+if [[ -d "$HOME/Library/Application Support/pear/bin" ]]; then
+  export PATH="$HOME/Library/Application Support/pear/bin":$PATH
+elif [[ -d "$HOME/.local/share/pear/bin" ]]; then
+  export PATH="$HOME/.local/share/pear/bin":$PATH
+fi
 
 [ -f "${XDG_CONFIG_HOME:-$HOME/.config}"/fzf/fzf.zsh ] && source "${XDG_CONFIG_HOME:-$HOME/.config}"/fzf/fzf.zsh

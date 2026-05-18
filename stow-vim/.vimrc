@@ -22,7 +22,11 @@ else
   call plug#begin('~/.vim/plugged')
 endif
 
-  Plug '/usr/local/opt/fzf'
+  if has('mac')
+    Plug '/usr/local/opt/fzf'
+  else
+    Plug '/home/linuxbrew/.linuxbrew/opt/fzf'
+  endif
   Plug 'junegunn/fzf' ", { 'do': { -> fzf#install() } }
   Plug 'junegunn/fzf.vim'
   Plug 'junegunn/limelight.vim'
@@ -223,7 +227,9 @@ lua << EOF
     workspaces = {
       {
           name = "default",
-          path = "~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Default"
+          path = vim.fn.expand(vim.fn.has("mac") == 1
+            \ ? "~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Default"
+            \ : "~/Documents/Obsidian")
       }
     }
   })
@@ -454,7 +460,11 @@ set spelllang=en_us
 set complete+=kspell
 set nowrap
 set splitright
-let g:netrw_http_cmd = 'open'
+if has('mac')
+  let g:netrw_http_cmd = 'open'
+else
+  let g:netrw_http_cmd = 'xdg-open'
+endif
 
 set winheight=5
 set winminheight=5
@@ -571,7 +581,11 @@ nnoremap <leader>w :wa<CR>:call SaveSession(GitDir().'/.vim-sessions/'.GitBranch
 
 command! GitBranchNote execute 'e' GitDir().'/notes/'.GitBranch().'.md'
 
-command! Terminal execute "Dispatch open -a Terminal ."
+if has('mac')
+  command! Terminal execute "Dispatch open -a Terminal ."
+else
+  command! Terminal execute "Dispatch xdg-terminal-exec ."
+endif
 command! ChmodX execute "Dispatch chmod +x %"
 nnoremap <cr><space> :Dispatch<cr>
 nnoremap <leader>#! ggI#!/usr/bin/env

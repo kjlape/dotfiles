@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+[[ "$(uname)" == "Darwin" ]] || exit 0
+
 osascript <<EOD
 tell application "Terminal"
   local allOpenedWindows

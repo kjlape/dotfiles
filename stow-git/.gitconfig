@@ -61,6 +61,7 @@
 	mm = !git fetch origin master && git merge origin/master "$@"
 [credential]
 	helper = osxkeychain
+	# helper = libsecret  # uncomment on Linux if libsecret is available
 [rebase]
 	autoStash = true
 	autosquash = true
@@ -73,11 +74,11 @@
 [push]
 	default = current
 [credential "https://github.com"]
-	helper = !/opt/homebrew/bin/gh auth git-credential
+	helper = !gh auth git-credential
 [credential "https://gist.github.com"]
-	helper = !/opt/homebrew/bin/gh auth git-credential
+	helper = !gh auth git-credential
 [gpg]
-	program = /opt/homebrew/bin/gpg
+	program = gpg
 [filter "lfs"]
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
