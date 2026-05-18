@@ -52,6 +52,7 @@ if [[ "$OS" == "Darwin" ]]; then
 fi
 brew install htop
 brew install shellcheck
+brew install gcc
 
 # Manage dotfiles
 brew install stow
