@@ -24,11 +24,6 @@ source "$OMARCHY_PATH/default/bash/rc"
 source $HOME/.env
 source $HOME/.me
 
-# >>> grok installer >>>
-export PATH="$HOME/.grok/bin:$PATH"
-[[ -r "$HOME/.grok/completions/bash/grok.bash" ]] && source "$HOME/.grok/completions/bash/grok.bash"
-# <<< grok installer <<<
-
 export PROMPT_COMMAND="history -a; $PROMPT_COMMAND"
 export HISTTIMEOUT=1
 
