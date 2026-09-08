@@ -60,6 +60,7 @@ endif
   " Plug 'mattn/emmet-vim'
   Plug 'nelstrom/vim-textobj-rubyblock'
   Plug 'neovimhaskell/haskell-vim'
+  Plug 'ojroques/vim-oscyank', {'branch': 'main'}
   " Plug 'prabirshrestha/vim-lsp'
   Plug 'rust-lang/rust.vim'
   " Plug 'sheerun/vim-polyglot'
@@ -306,6 +307,11 @@ let test#custom_runners = {'Ruby': ['DHH']}
 nnoremap <silent> <cr>t :TestFile<cr>
 nnoremap <silent> <cr>n :TestNearest<cr>
 nnoremap <silent> <cr><cr> :TestLast<cr>
+
+" " Plugin vim-oscyank
+nmap <leader>c <Plug>OSCYankOperator
+nmap <leader>cc <leader>c_
+vmap <leader>c <Plug>OSCYankVisual
 
 " " Plugin neural
 let g:neural = {

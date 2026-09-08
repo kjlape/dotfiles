@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+data=$(cat)
+b64=$(printf '%s' "$data" | base64 | tr -d '\n')
+
+if [[ -n "$TMUX" ]]; then
+  printf "\033Ptmux;\033\033]52;c;%s\007\033\\" "$b64"
+elif [[ -n "$SSH_CLIENT" || -n "$SSH_TTY" ]]; then
+  printf "\033]52;c;%s\007" "$b64"
+elif which pbcopy &>/dev/null; then
+  pbcopy <<< "$data"
+elif which wl-copy &>/dev/null; then
+  wl-copy <<< "$data"
+elif which xdg-copy &>/dev/null; then
+  xdg-copy <<< "$data"
+else
+  echo "$data"
+fi

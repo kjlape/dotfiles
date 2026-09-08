@@ -14,3 +14,18 @@ source ~/.local/share/omarchy/default/bash/rc
 
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"
 source $HOME/.env
+source $HOME/.me
+
+# >>> grok installer >>>
+export PATH="$HOME/.grok/bin:$PATH"
+[[ -r "$HOME/.grok/completions/bash/grok.bash" ]] && source "$HOME/.grok/completions/bash/grok.bash"
+# <<< grok installer <<<
+
+export PROMPT_COMMAND="history -a; $PROMPT_COMMAND"
+export HISTTIMEOUT=1
+
+set -h
+source /usr/share/nvm/init-nvm.sh
+
+# opencode
+export PATH=/home/kjlape/.opencode/bin:$PATH

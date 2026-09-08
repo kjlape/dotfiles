@@ -1,0 +1,84 @@
+#!/bin/sh
+
+# init part
+
+PID=""
+
+ss_address=""
+
+screen_saver=""
+
+SCREEN_SAVERS_DIR=/usr/lib/xscreensaver
+
+USR_RUN_DIR=/var/run/user/$(id -u)
+PIDFILE="$USR_RUN_DIR/wxscreensaver.pid"
+
+if [ ! -r "$PIDFILE" ]; then
+
+echo "" > $PIDFILE
+
+fi
+
+# Functions
+
+exec_screen_saver(){
+
+if [ -z "$(cat $PIDFILE)" ]; then
+
+screen_saver=$(cat $XDG_CONFIG_HOME/wxscreensaver/screen_savers.list | shuf -n 1)
+
+$SCREEN_SAVERS_DIR/$screen_saver &
+
+PID=$!
+
+echo $PID > $PIDFILE # to always have a pid to kill.
+
+fi
+
+}
+
+get_hypr_address(){
+
+local query=".[] | select(.pid == $1) | .address"
+
+sc_address=$(hyprctl clients -j | jq -r "$query")
+
+}
+
+# In a graphical session?
+
+if [ -z "$DESKTOP_SESSION" ]; then
+
+  echo "Not in Sway or Hyprland! nothing to do."
+
+elif [ "$DESKTOP_SESSION" = "sway" ]; then
+
+  exec_screen_saver
+
+  sleep 1
+
+  if [ -z "$screen_saver" ]; then
+    echo ""
+  else
+
+  swaymsg -- \[instance=$screen_saver\] fullscreen enable
+
+  fi
+
+elif [ "$DESKTOP_SESSION" = "omarchy" ]; then
+
+  exec_screen_saver
+
+  sleep 0.5
+
+  if [ -z "$screen_saver" ]; then
+    echo ""
+  else
+    get_hypr_address $PID
+    hyprctl dispatch focuswindow "address:$sc_address"
+    hyprctl dispatch fullscreen x
+  fi
+
+else
+  echo "Not implemented yet..."
+fi

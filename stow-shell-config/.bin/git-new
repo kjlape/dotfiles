@@ -22,5 +22,5 @@ mkdir -p "$repo_dir"
 cd "$repo_dir" || exit 1
 git init
 
-echo -n "cd $repo_dir" | pbcopy
-echo "Hit Command-V + Return to cd into the repo!"
+echo -n "cd $repo_dir" | uni-copy
+echo "'cd $repo_dir' was placed in your clipboard. Paste and hit Enter to get started!"

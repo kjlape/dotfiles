@@ -1,17 +1,17 @@
 # vim:set ft=sh:
 
 export CLICOLOR=1
-export NVIM_APPNAME=nvim-migration
-export EDITOR=nvim
+# export NVIM_APPNAME=nvim-migration
+export EDITOR=vim
 export XDG_CONFIG_HOME="$HOME/.config"
 export RIPGREP_CONFIG_PATH="$XDG_CONFIG_HOME/ripgrep/.ripgreprc"
 export GPG_TTY=$(tty)
 
-setopt SHARE_HISTORY
-setopt EXTENDED_HISTORY
-export HISTFILE=$HOME/.zsh_history
-export HISTSIZE=1000000
-export SAVEHIST=1000000000
+# setopt SHARE_HISTORY
+# setopt EXTENDED_HISTORY
+# export HISTFILE=$HOME/.zsh_history
+# export HISTSIZE=1000000
+# export SAVEHIST=1000000000
 
 export GIT_USER=pingortle
 export DEV="$HOME/dev"
@@ -33,7 +33,7 @@ export DISABLE_SPRING=1
 # source /usr/local/etc/bash_completion.d/git-prompt.sh
 
 [ -f $HOME/.secrets ] && source $HOME/.secrets
-source $HOME/.colors
+# source $HOME/.colors
 
 alias diff="git diff --no-index"
 alias trim='tr -d "\n"'
@@ -74,9 +74,14 @@ alias frazzled='vim ~/.frazzle-dazzle.md'
 alias defrazzle='bat ~/.frazzle-dazzle.md'
 alias awslocal='AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=${DEFAULT_REGION:-$AWS_DEFAULT_REGION} aws --endpoint-url=http://${LOCALSTACK_HOST:-localhost}:4566'
 
+alias bws='docker run -e NO_COLOR -e CLICOLOR -e BWS_PROJECT -e BWS_ACCESS_TOKEN --rm ghcr.io/bitwarden/bws --color no'
 alias tebako='docker run -v $PWD:/pwd \
   -t ghcr.io/tamatebako/tebako-ubuntu-20.04:latest \
   tebako'
+
+# hypr
+alias set-hyperland-instance="export HYPRLAND_INSTANCE_SIGNATURE=$(/usr/bin/ls -t /run/user/$(id -u)/hypr/ | head -n1)"
+alias hyprctl="export HYPRLAND_INSTANCE_SIGNATURE=$(/usr/bin/ls -t /run/user/$(id -u)/hypr/ | head -n1); hyprctl"
 
 editor() {
   export EDITOR="$1"
@@ -122,6 +127,10 @@ cdev() {
 
 cmy() {
   cd "$(my "$@")"
+}
+
+cdgwt() {
+  cd "$(git select-worktree "$@")"
 }
 
 function set-terminal-app-profile {

@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# Check if branch name is provided
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 <branch-name>"
+    exit 1
+fi
+
+BRANCH_NAME="$1"
+# SANITIZED_FQN="$(git config --get remote.origin.url | sed -E 's/^git@//' | sed -E 's/\.git$//' | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '_' | sed -E 's/_+$//')"
+# WORKTREE_DIR="$HOME/.local/git/$SANITIZED_FQN/worktrees"
+ORIGINAL_CLONE_PATH="$(git rev-parse --git-dir | xargs -I {} readlink -f {} | sed -E 's/\/\.git.*$//')"
+WORKTREE_ROOT_DIR="$ORIGINAL_CLONE_PATH/tmp/worktrees"
+WORKTREE_PATH="$WORKTREE_ROOT_DIR/branch/${BRANCH_NAME}"
+ENV_FILES=".env.*"
+
+# Create worktree directory if it doesn't exist
+mkdir -p "$WORKTREE_PATH"
+
+# Fetch origin/main
+echo "Fetching origin/main..."
+git fetch origin main
+
+# Create worktree with name branch-${branch_name}
+echo "Creating worktree at $WORKTREE_PATH..."
+git fetch origin main
+git worktree add -B "${BRANCH_NAME}" "$WORKTREE_PATH" origin/main
+
+# Copy .env* files to worktree
+echo "Copying .env* files to worktree..."
+# cp $ENV_FILES "$WORKTREE_PATH/"
+
+# Link root .env file to satellite worktree
+ROOT_ENV_PATH=$ORIGINAL_CLONE_PATH/.env
+test -f $ROOT_ENV_PATH && ln -sf $ROOT_ENV_PATH $WORKTREE_PATH/
+
+# Get editor from environment or default to vim
+# EDITOR="${EDITOR:-vim}"
+
+# Open .env* files in editor
+# echo "Opening .env.* files in $EDITOR..."
+find $ORIGINAL_CLONE_PATH -maxdepth 1 -name '.env.*' ! -name '.env.example' | while read -r file; do
+    if [ -f "$file" ]; then
+        # $EDITOR "$file"
+      uniqify-env-ports $file > $WORKTREE_PATH/"$(basename $file)"
+    fi
+done
+
+echo "Worktree setup complete!"

@@ -3,7 +3,7 @@
 # Original gist by @searls: https://gist.github.com/searls/62d5cb2f736a75c73ae2
 # A simple script to keep a tidy ~/code directory organized by owner & then repo
 # When the script is done, just hit command-v to switch into the directory
-# (Github and Mac only. Sorry, openness!)
+# (Github only. Sorry, openness!)
 #
 # Usage:
 #   gloan <org>/<repo>
@@ -31,5 +31,7 @@ else
   git clone "git@github.com:$ORG/$REPO.git" "$REPO_DIR"
 fi
 
-printf "cd %s" "$REPO_DIR" | pbcopy
-echo "Hit Command-V + Return to cd into the repo!"
+CD_COMMAND="cd $REPO_DIR"
+
+echo -n "$CD_COMMAND" | uni-copy
+echo "Hit paste + Return to cd into the repo!"

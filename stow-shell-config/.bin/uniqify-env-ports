@@ -1,0 +1,190 @@
+#!/usr/bin/env ruby
+
+require 'fileutils'
+require 'socket'
+
+class EnvironmentFile
+  attr_reader :path, :configurations, :lines
+  
+  def initialize(path)
+    @path = path
+    @lines = read_file
+    @configurations = []
+  end
+  
+  def read_file
+    unless File.exist?(@path)
+      raise FileNotFoundError, "File not found: #{@path}"
+    end
+    
+    File.read(@path).lines.map(&:strip)
+  end
+  
+  def find_port_configurations
+    @lines.each do |line|
+      next if line.empty? || line.start_with?('#')
+      
+      key, value = line.split('=', 2)
+      next unless key
+      
+      if key.end_with?('_PORT')
+        base_port = value.to_i
+        if (1024..65535).cover?(base_port)
+          @configurations << PortConfiguration.new(key, base_port)
+        end
+      end
+    end
+    
+    @configurations
+  end
+  
+  def output_configured_ports
+    output = +""
+    @lines.each do |line|
+      line.strip!
+      
+      configuration = @configurations.find { |c| line.start_with?("#{c.key}=") }
+      if configuration && configuration.resolved_port
+        output << "#{configuration.key}=#{configuration.resolved_port}\n"
+      else
+        output << "#{line}\n" unless line.empty?
+      end
+    end
+    
+    output
+  end
+  
+  private
+  
+  class FileNotFoundError < StandardError; end
+end
+
+class PortConfiguration
+  attr_accessor :key, :base_port, :resolved_port
+  
+  def initialize(key, base_port)
+    @key = key
+    @base_port = base_port
+    @resolved_port = nil
+  end
+  
+  def to_s
+    "#{@key}: #{@base_port} → #{@resolved_port || 'pending'}"
+  end
+end
+
+class PortReservation
+  attr_reader :reserved_ports
+  
+  def initialize
+    @reserved_ports = Set.new
+  end
+  
+  def available?(port)
+    return false if @reserved_ports.include?(port)
+    
+    server = TCPServer.new('127.0.0.1', port)
+    server.close
+    true
+  rescue Errno::EADDRINUSE, Errno::EACCES
+    false
+  end
+  
+  def reserve(port)
+    @reserved_ports << port
+  end
+end
+
+class PortGenerator
+  attr_reader :base_port
+  
+  def initialize(base_port)
+    @base_port = base_port
+  end
+  
+  def generate_unique(used_ports)
+    return @base_port if available?(@base_port) && !used_ports.include?(@base_port)
+    
+    generate_similar_port(used_ports) || generate_fallback_port(used_ports)
+  end
+  
+  private
+  
+  def available?(port)
+    server = TCPServer.new('127.0.0.1', port)
+    server.close
+    true
+  rescue Errno::EADDRINUSE, Errno::EACCES
+    false
+  end
+  
+  def generate_similar_port(used_ports)
+    last_two = @base_port % 100
+    first_part = @base_port / 100
+    
+    (1..100).each do |offset|
+      # Variation 1: Increment first part
+      new_port = (first_part + offset) * 100 + last_two
+      return new_port if (1024..65535).cover?(new_port) && available?(new_port) && !used_ports.include?(new_port)
+      
+      # Variation 2: Increment base port
+      new_port = @base_port + offset
+      return new_port if (1024..65535).cover?(new_port) && available?(new_port) && !used_ports.include?(new_port)
+      
+      # Variation 3: Decrement base port
+      new_port = @base_port - offset
+      return new_port if (1024..65535).cover?(new_port) && available?(new_port) && !used_ports.include?(new_port)
+    end
+    
+    nil
+  end
+  
+  def generate_fallback_port(used_ports)
+    (1024..65535).each do |port|
+      return port if available?(port) && !used_ports.include?(port)
+    end
+    
+    raise PortGenerationError, "Could not find available port"
+  end
+  
+  class PortGenerationError < StandardError; end
+end
+
+class PortResolver
+  attr_reader :configurations
+  
+  def initialize(env_file_path)
+    @environment_file = EnvironmentFile.new(env_file_path)
+    @reservation = PortReservation.new
+    @configurations = []
+  end
+  
+  def resolve
+    configurations = @environment_file.find_port_configurations
+    
+    configurations.each do |config|
+      generator = PortGenerator.new(config.base_port)
+      new_port = generator.generate_unique(@reservation.reserved_ports)
+      config.resolved_port = new_port
+      @reservation.reserve(new_port)
+      @configurations << config
+    end
+    
+    @configurations
+  end
+  
+  def output
+    @environment_file.output_configured_ports
+  end
+end
+
+def main
+  env_file_path = ARGV[0] || '.env'
+
+  resolver = PortResolver.new(env_file_path)
+  resolver.resolve
+
+  puts resolver.output
+end
+
+main if __FILE__ == $PROGRAM_NAME

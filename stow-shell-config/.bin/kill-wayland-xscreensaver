@@ -1,0 +1,9 @@
+#!/bin/sh
+
+USR_RUN_DIR=/var/run/user/$(id -u)
+PIDFILE="$USR_RUN_DIR/wxscreensaver.pid"
+
+if [ -n "$(cat $PIDFILE)" ]; then
+  kill $(cat $PIDFILE); \
+  echo "" > $PIDFILE
+fi

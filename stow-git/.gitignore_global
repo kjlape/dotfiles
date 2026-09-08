@@ -31,3 +31,5 @@ tags
 *.bk
 *~
 *.backup
+
+**/.claude/settings.local.json

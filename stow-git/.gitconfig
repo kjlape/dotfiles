@@ -1,5 +1,5 @@
 [user]
-	email = kaleb.lape@gmail.com
+	email = kaleb@rails.quest
 	name = Kaleb Lape
 	signingkey = 865E9268C740BD76
 [github]
@@ -15,7 +15,7 @@
 [delta]
 	navigate = true
 [merge]
-	conflictStyle = diff3
+	conflictStyle = zdiff3
 [diff]
 	colorMoved = default
 [init]
