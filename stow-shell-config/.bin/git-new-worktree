@@ -1,30 +1,42 @@
 #!/bin/bash
 
+# Base branch to fork worktrees from. Override per-invocation with -b,
+# or set GIT_NEW_WORKTREE_BASE_BRANCH in your env for repos that use
+# main/develop/etc instead of master.
+BASE_BRANCH="${GIT_NEW_WORKTREE_BASE_BRANCH:-master}"
+
+while getopts "b:" opt; do
+    case "$opt" in
+        b) BASE_BRANCH="$OPTARG" ;;
+        *) echo "Usage: $0 [-b base-branch] <branch-name>"; exit 1 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
 # Check if branch name is provided
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 <branch-name>"
+    echo "Usage: $0 [-b base-branch] <branch-name>"
     exit 1
 fi
 
 BRANCH_NAME="$1"
-# SANITIZED_FQN="$(git config --get remote.origin.url | sed -E 's/^git@//' | sed -E 's/\.git$//' | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '_' | sed -E 's/_+$//')"
-# WORKTREE_DIR="$HOME/.local/git/$SANITIZED_FQN/worktrees"
 ORIGINAL_CLONE_PATH="$(git rev-parse --git-dir | xargs -I {} readlink -f {} | sed -E 's/\/\.git.*$//')"
-WORKTREE_ROOT_DIR="$ORIGINAL_CLONE_PATH/tmp/worktrees"
-WORKTREE_PATH="$WORKTREE_ROOT_DIR/branch/${BRANCH_NAME}"
+SANITIZED_FQN="$(git config --get remote.origin.url | sed -E 's/^git@//' | sed -E 's/\.git$//' | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '_' | sed -E 's/_+$//')"
+WORKTREE_DIR="$HOME/.local/git/$SANITIZED_FQN/worktrees"
+WORKTREE_PATH="$WORKTREE_DIR/branch/${BRANCH_NAME}"
 ENV_FILES=".env.*"
 
 # Create worktree directory if it doesn't exist
 mkdir -p "$WORKTREE_PATH"
 
-# Fetch origin/main
-echo "Fetching origin/main..."
-git fetch origin main
+# Fetch origin/${BASE_BRANCH}
+echo "Fetching..."
+git fetch
 
 # Create worktree with name branch-${branch_name}
-echo "Creating worktree at $WORKTREE_PATH..."
-git fetch origin main
-git worktree add -B "${BRANCH_NAME}" "$WORKTREE_PATH" origin/main
+echo "Creating worktree at $WORKTREE_PATH from origin/${BASE_BRANCH}..."
+git fetch origin "${BASE_BRANCH}"
+git worktree add -B "${BRANCH_NAME}" "$WORKTREE_PATH" "origin/${BASE_BRANCH}"
 
 # Copy .env* files to worktree
 echo "Copying .env* files to worktree..."
