@@ -9,6 +9,8 @@
 # Hook lookup order (first match wins):
 #   1. $WORKTREE_PATH/.worktree-teardown   (committed to the branch itself)
 #   2. $ORIGINAL_CLONE_PATH/.worktree-teardown  (shared across all worktrees)
+#   3. ~/.local/git/<sanitized-remote>/worktree-teardown  (personal, untracked;
+#      lives next to the worktrees dir so it never touches the repo)
 #
 # The hook is invoked with the worktree path as $1 and the branch name as
 # $2, and with PWD set to the worktree. A non-zero exit from the hook aborts
@@ -38,7 +40,8 @@ fi
 BRANCH_NAME="$1"
 ORIGINAL_CLONE_PATH="$(git rev-parse --git-dir | xargs -I {} readlink -f {} | sed -E 's/\/\.git.*$//')"
 SANITIZED_FQN="$(git config --get remote.origin.url | sed -E 's/^git@//' | sed -E 's/\.git$//' | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '_' | sed -E 's/_+$//')"
-WORKTREE_DIR="$HOME/.local/git/$SANITIZED_FQN/worktrees"
+REPO_LOCAL_DIR="$HOME/.local/git/$SANITIZED_FQN"
+WORKTREE_DIR="$REPO_LOCAL_DIR/worktrees"
 WORKTREE_PATH="$WORKTREE_DIR/branch/${BRANCH_NAME}"
 
 if [ ! -d "$WORKTREE_PATH" ]; then
@@ -51,6 +54,8 @@ if [ -x "$WORKTREE_PATH/.worktree-teardown" ]; then
     HOOK="$WORKTREE_PATH/.worktree-teardown"
 elif [ -x "$ORIGINAL_CLONE_PATH/.worktree-teardown" ]; then
     HOOK="$ORIGINAL_CLONE_PATH/.worktree-teardown"
+elif [ -x "$REPO_LOCAL_DIR/worktree-teardown" ]; then
+    HOOK="$REPO_LOCAL_DIR/worktree-teardown"
 fi
 
 if [ -n "$HOOK" ] && [ "$FORCE" -eq 0 ]; then
