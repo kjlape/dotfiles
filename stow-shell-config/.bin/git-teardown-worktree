@@ -1,0 +1,78 @@
+#!/bin/bash
+
+# Tear down a git worktree created by git-new-worktree.
+#
+# Before removing the worktree, this looks for an executable hook script
+# and runs it, giving the project a chance to clean up things git doesn't
+# know about (docker compose clusters, background rails servers, etc).
+#
+# Hook lookup order (first match wins):
+#   1. $WORKTREE_PATH/.worktree-teardown   (committed to the branch itself)
+#   2. $ORIGINAL_CLONE_PATH/.worktree-teardown  (shared across all worktrees)
+#
+# The hook is invoked with the worktree path as $1 and the branch name as
+# $2, and with PWD set to the worktree. A non-zero exit from the hook aborts
+# the teardown so nothing gets removed out from under a live cluster/server.
+#
+# Usage: git-teardown-worktree [-d] [-f] <branch-name>
+#   -d   also delete the local branch after removing the worktree
+#   -f   skip the teardown hook and force-remove the worktree even if dirty
+
+DELETE_BRANCH=0
+FORCE=0
+
+while getopts "df" opt; do
+    case "$opt" in
+        d) DELETE_BRANCH=1 ;;
+        f) FORCE=1 ;;
+        *) echo "Usage: $0 [-d] [-f] <branch-name>"; exit 1 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 [-d] [-f] <branch-name>"
+    exit 1
+fi
+
+BRANCH_NAME="$1"
+ORIGINAL_CLONE_PATH="$(git rev-parse --git-dir | xargs -I {} readlink -f {} | sed -E 's/\/\.git.*$//')"
+SANITIZED_FQN="$(git config --get remote.origin.url | sed -E 's/^git@//' | sed -E 's/\.git$//' | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '_' | sed -E 's/_+$//')"
+WORKTREE_DIR="$HOME/.local/git/$SANITIZED_FQN/worktrees"
+WORKTREE_PATH="$WORKTREE_DIR/branch/${BRANCH_NAME}"
+
+if [ ! -d "$WORKTREE_PATH" ]; then
+    echo "No worktree found at $WORKTREE_PATH"
+    exit 1
+fi
+
+HOOK=""
+if [ -x "$WORKTREE_PATH/.worktree-teardown" ]; then
+    HOOK="$WORKTREE_PATH/.worktree-teardown"
+elif [ -x "$ORIGINAL_CLONE_PATH/.worktree-teardown" ]; then
+    HOOK="$ORIGINAL_CLONE_PATH/.worktree-teardown"
+fi
+
+if [ -n "$HOOK" ] && [ "$FORCE" -eq 0 ]; then
+    echo "Running teardown hook: $HOOK"
+    if ! (cd "$WORKTREE_PATH" && "$HOOK" "$WORKTREE_PATH" "$BRANCH_NAME"); then
+        echo "Teardown hook failed; aborting worktree removal."
+        exit 1
+    fi
+elif [ -n "$HOOK" ]; then
+    echo "Skipping teardown hook ($HOOK) due to -f"
+fi
+
+echo "Removing worktree at $WORKTREE_PATH..."
+if [ "$FORCE" -eq 1 ]; then
+    git worktree remove --force "$WORKTREE_PATH"
+else
+    git worktree remove "$WORKTREE_PATH"
+fi
+
+if [ "$DELETE_BRANCH" -eq 1 ]; then
+    echo "Deleting branch ${BRANCH_NAME}..."
+    git branch -D "$BRANCH_NAME"
+fi
+
+echo "Worktree teardown complete!"
