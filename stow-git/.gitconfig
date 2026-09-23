@@ -61,8 +61,8 @@
 	romi = rebase origin/master -i
 	mm = !git fetch origin master && git merge origin/master "$@"
 [credential]
-	helper = osxkeychain
-	# helper = libsecret  # uncomment on Linux if libsecret is available
+	; helper = osxkeychain
+	; helper = libsecret  # uncomment on Linux if libsecret is available
 [rebase]
 	autoStash = true
 	autosquash = true
