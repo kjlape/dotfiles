@@ -1,8 +1,26 @@
 #!/bin/bash
 
-# Base branch to fork worktrees from. Override per-invocation with -b,
-# or set GIT_NEW_WORKTREE_BASE_BRANCH in your env for repos that use
-# main/develop/etc instead of master.
+# Create a git worktree for a branch, forked from origin/<base-branch>.
+#
+# After the worktree is created, this looks for an executable hook script
+# and runs it, giving the project a chance to do spin-up work git doesn't
+# know about (linking/copying .env files, uniquifying ports, installing
+# dependencies, etc).
+#
+# Hook lookup order (first match wins):
+#   1. $WORKTREE_PATH/.worktree-setup   (committed to the base branch)
+#   2. $ORIGINAL_CLONE_PATH/.worktree-setup  (shared across all worktrees)
+#   3. ~/.local/git/<sanitized-remote>/worktree-setup  (personal, untracked;
+#      lives next to the worktrees dir so it never touches the repo)
+#
+# The hook is invoked with the worktree path as $1, the branch name as $2,
+# and the original clone path as $3, and with PWD set to the worktree. A
+# non-zero exit from the hook is reported, but the worktree is left in place.
+#
+# Usage: git-new-worktree [-b base-branch] <branch-name>
+#   -b   base branch to fork from (default: $GIT_NEW_WORKTREE_BASE_BRANCH,
+#        or master)
+
 BASE_BRANCH="${GIT_NEW_WORKTREE_BASE_BRANCH:-master}"
 
 while getopts "b:" opt; do
@@ -13,7 +31,6 @@ while getopts "b:" opt; do
 done
 shift $((OPTIND - 1))
 
-# Check if branch name is provided
 if [ $# -eq 0 ]; then
     echo "Usage: $0 [-b base-branch] <branch-name>"
     exit 1
@@ -22,40 +39,31 @@ fi
 BRANCH_NAME="$1"
 ORIGINAL_CLONE_PATH="$(git rev-parse --git-dir | xargs -I {} readlink -f {} | sed -E 's/\/\.git.*$//')"
 SANITIZED_FQN="$(git config --get remote.origin.url | sed -E 's/^git@//' | sed -E 's/\.git$//' | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '_' | sed -E 's/_+$//')"
-WORKTREE_DIR="$HOME/.local/git/$SANITIZED_FQN/worktrees"
+REPO_LOCAL_DIR="$HOME/.local/git/$SANITIZED_FQN"
+WORKTREE_DIR="$REPO_LOCAL_DIR/worktrees"
 WORKTREE_PATH="$WORKTREE_DIR/branch/${BRANCH_NAME}"
-ENV_FILES=".env.*"
 
-# Create worktree directory if it doesn't exist
 mkdir -p "$WORKTREE_PATH"
 
-# Fetch origin/${BASE_BRANCH}
-echo "Fetching..."
-git fetch
-
-# Create worktree with name branch-${branch_name}
 echo "Creating worktree at $WORKTREE_PATH from origin/${BASE_BRANCH}..."
-git fetch origin "${BASE_BRANCH}"
-git worktree add -B "${BRANCH_NAME}" "$WORKTREE_PATH" "origin/${BASE_BRANCH}"
+git fetch origin "${BASE_BRANCH}" || exit 1
+git worktree add -B "${BRANCH_NAME}" "$WORKTREE_PATH" "origin/${BASE_BRANCH}" || exit 1
 
-# Copy .env* files to worktree
-echo "Copying .env* files to worktree..."
-# cp $ENV_FILES "$WORKTREE_PATH/"
+HOOK=""
+if [ -x "$WORKTREE_PATH/.worktree-setup" ]; then
+    HOOK="$WORKTREE_PATH/.worktree-setup"
+elif [ -x "$ORIGINAL_CLONE_PATH/.worktree-setup" ]; then
+    HOOK="$ORIGINAL_CLONE_PATH/.worktree-setup"
+elif [ -x "$REPO_LOCAL_DIR/worktree-setup" ]; then
+    HOOK="$REPO_LOCAL_DIR/worktree-setup"
+fi
 
-# Link root .env file to satellite worktree
-ROOT_ENV_PATH=$ORIGINAL_CLONE_PATH/.env
-test -f $ROOT_ENV_PATH && ln -sf $ROOT_ENV_PATH $WORKTREE_PATH/
-
-# Get editor from environment or default to vim
-# EDITOR="${EDITOR:-vim}"
-
-# Open .env* files in editor
-# echo "Opening .env.* files in $EDITOR..."
-find $ORIGINAL_CLONE_PATH -maxdepth 1 -name '.env.*' ! -name '.env.example' | while read -r file; do
-    if [ -f "$file" ]; then
-        # $EDITOR "$file"
-      uniqify-env-ports $file > $WORKTREE_PATH/"$(basename $file)"
+if [ -n "$HOOK" ]; then
+    echo "Running setup hook: $HOOK"
+    if ! (cd "$WORKTREE_PATH" && "$HOOK" "$WORKTREE_PATH" "$BRANCH_NAME" "$ORIGINAL_CLONE_PATH"); then
+        echo "Setup hook failed; worktree left at $WORKTREE_PATH."
+        exit 1
     fi
-done
+fi
 
 echo "Worktree setup complete!"
