@@ -21,7 +21,6 @@ source "$OMARCHY_PATH/default/bash/rc"
 
 [ -f "${XDG_CONFIG_HOME:-$HOME/.config}"/fzf/fzf.bash ] && source "${XDG_CONFIG_HOME:-$HOME/.config}"/fzf/fzf.bash
 
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"
 source $HOME/.env
 source $HOME/.me
 
