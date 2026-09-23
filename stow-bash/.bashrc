@@ -32,8 +32,8 @@ export PATH="$HOME/.grok/bin:$PATH"
 export PROMPT_COMMAND="history -a; $PROMPT_COMMAND"
 export HISTTIMEOUT=1
 
-set -h
-source /usr/share/nvm/init-nvm.sh
-
 # opencode
 export PATH=/home/kjlape/.opencode/bin:$PATH
+
+# mise
+export PATH="$HOME/.local/share/mise/shims:$PATH"
