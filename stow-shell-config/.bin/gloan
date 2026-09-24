@@ -3,21 +3,43 @@
 # Original gist by @searls: https://gist.github.com/searls/62d5cb2f736a75c73ae2
 # A simple script to keep a tidy ~/code directory organized by owner & then repo
 # When the script is done, just hit command-v to switch into the directory
-# (Github only. Sorry, openness!)
 #
 # Usage:
-#   gloan <org>/<repo>
+#   gloan <org>/<repo>              # shorthand, resolves to git@github.com:<org>/<repo>.git
 # Or:
-#   gloan <org> <repo>
+#   gloan <org> <repo>              # same, as two args
+# Or:
+#   gloan <fully-qualified-remote>  # any other host, cloned as-is (https://, ssh://, or user@host:path)
 #
 # example: gloan testdouble/testdouble.js
+# example: gloan https://gitlab.com/group/subgroup.git
+# example: gloan git@gitlab.example.com:group/repo.git
 #
 # Once cloned, will copy a "cd" command to quickly change into repo directory
 
-IFS='/' read -ra ADDR <<< "$1"
-ADDR=("${ADDR[@]: -2:2}")
-ORG="${ADDR[0]}"
-REPO="${ADDR[1]-$2}"
+if [[ "$1" == *"://"* ]] || [[ "$1" =~ ^[^/[:space:]]+@[^/[:space:]]+:[^/[:space:]] ]]; then
+  # Fully qualified remote (https://, ssh://, or scp-like user@host:path) - clone verbatim,
+  # but still derive org/repo from the path for directory bookkeeping.
+  REMOTE_URL="$1"
+  if [[ "$REMOTE_URL" == *"://"* ]]; then
+    PATH_PART="${REMOTE_URL#*://}" # strip scheme
+    PATH_PART="${PATH_PART#*/}"    # strip host[:port]
+  else
+    PATH_PART="${REMOTE_URL#*:}"   # strip user@host:
+  fi
+  PATH_PART="${PATH_PART%.git}"
+  IFS='/' read -ra ADDR <<< "$PATH_PART"
+  ADDR=("${ADDR[@]: -2:2}")
+  ORG="${ADDR[0]}"
+  REPO="${ADDR[1]}"
+else
+  IFS='/' read -ra ADDR <<< "$1"
+  ADDR=("${ADDR[@]: -2:2}")
+  ORG="${ADDR[0]}"
+  REPO="${ADDR[1]-$2}"
+  REMOTE_URL="git@github.com:$ORG/$REPO.git"
+fi
+
 ORG_DIR="$HOME/dev/$ORG"
 REPO_DIR="$ORG_DIR/$REPO"
 
@@ -28,7 +50,7 @@ mkdir -p "$ORG_DIR"
 if [ -d "$REPO_DIR" ]; then
   echo "It looks like the repo was already cloned."
 else
-  git clone "git@github.com:$ORG/$REPO.git" "$REPO_DIR"
+  git clone "$REMOTE_URL" "$REPO_DIR"
 fi
 
 CD_COMMAND="cd $REPO_DIR"
