@@ -73,6 +73,9 @@ case "$cmd" in
       echo "wallpaper-slideshow: interval must be a positive number of minutes" >&2
       exit 1
     fi
+    # Resolve the real path of this script (through any stow symlinks) so the
+    # unit doesn't depend on where the binary is (or isn't) linked.
+    self="$(readlink -f "${BASH_SOURCE[0]}")"
     mkdir -p "$HOME/.config/systemd/user"
     cat > "$HOME/.config/systemd/user/wallpaper-slideshow.service" <<EOF
 [Unit]
@@ -80,7 +83,7 @@ Description=Advance the wallpaper slideshow
 
 [Service]
 Type=oneshot
-ExecStart=$HOME/.local/bin/wallpaper-slideshow next
+ExecStart=$self next
 EOF
     cat > "$HOME/.config/systemd/user/$TIMER_UNIT" <<EOF
 [Unit]
