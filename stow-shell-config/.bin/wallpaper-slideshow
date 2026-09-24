@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# wallpaper-slideshow — cycle the Omarchy desktop wallpaper through a directory.
+#
+# Renders via the first-party omarchy background service (a Wayland layer-shell
+# surface), so it sits below every window on every workspace — no window rules,
+# no z-order problems, and the shell's own reveal transition handles crossfade.
+#
+# Commands:
+#   next | prev        advance / go back one image
+#   start [minutes]    enable the systemd user timer (default 10 min)
+#   stop               disable the timer
+#   status             what's playing, from where, on what interval
+#   dir [path]         get or set the source directory (resets to image 0)
+#
+# State:   ~/.local/state/wallpaper-slideshow/
+# Timer:   ~/.config/systemd/user/wallpaper-slideshow.timer
+set -euo pipefail
+
+OMARCHY_THEME_BACKGROUNDS_DIR="$HOME/.local/state/omarchy/current/theme/backgrounds"
+STATE_DIR="$HOME/.local/state/wallpaper-slideshow"
+DIR_FILE="$STATE_DIR/dir"
+INDEX_FILE="$STATE_DIR/index"
+DEFAULT_DIR="$OMARCHY_THEME_BACKGROUNDS_DIR"
+TIMER_UNIT="wallpaper-slideshow.timer"
+IMAGE_RE='\.(png|jpe?g|webp|gif|bmp|jxl|avif|tiff?)$'
+
+mkdir -p "$STATE_DIR"
+
+get_dir() {
+  if [[ -f $DIR_FILE ]]; then cat "$DIR_FILE"; else echo "$DEFAULT_DIR"; fi
+}
+
+list_images() {
+  local d
+  d="$(get_dir)"
+  [[ -d $d ]] || return 0
+  find "$d" -type f -regextype posix-extended -iregex ".*$IMAGE_RE" 2>/dev/null | LC_ALL=C sort
+}
+
+apply_index() { # $1 = new index
+  local images i n
+  images="$(list_images)"
+  n=$(printf '%s' "$images" | grep -c . || true)
+  if (( n == 0 )); then
+    echo "wallpaper-slideshow: no images found in $(get_dir)" >&2
+    return 1
+  fi
+  i=$(( $1 % n ))
+  echo "$i" > "$INDEX_FILE"
+  local img
+  img="$(printf '%s' "$images" | sed -n "$((i + 1))p")"
+  omarchy-theme-bg-set "$img"
+}
+
+step() { # $1 = +1 or -1
+  local cur=0 n
+  [[ -f $INDEX_FILE ]] && cur=$(cat "$INDEX_FILE")
+  n=$(list_images | grep -c . || true)
+  if (( n == 0 )); then
+    echo "wallpaper-slideshow: no images found in $(get_dir)" >&2
+    return 1
+  fi
+  apply_index $(( (cur + $1 + n) % n ))
+}
+
+cmd="${1:-status}"
+case "$cmd" in
+  next) step +1 ;;
+  prev) step -1 ;;
+  start)
+    minutes="${2:-10}"
+    if ! [[ $minutes =~ ^[0-9]+$ ]] || (( minutes < 1 )); then
+      echo "wallpaper-slideshow: interval must be a positive number of minutes" >&2
+      exit 1
+    fi
+    mkdir -p "$HOME/.config/systemd/user"
+    cat > "$HOME/.config/systemd/user/wallpaper-slideshow.service" <<EOF
+[Unit]
+Description=Advance the wallpaper slideshow
+
+[Service]
+Type=oneshot
+ExecStart=$HOME/.local/bin/wallpaper-slideshow next
+EOF
+    cat > "$HOME/.config/systemd/user/$TIMER_UNIT" <<EOF
+[Unit]
+Description=Wallpaper slideshow timer
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=${minutes}min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+    systemctl --user daemon-reload
+    systemctl --user enable --now "$TIMER_UNIT" >/dev/null 2>&1
+    # systemctl --user enable "wallpaper-slideshow.service" >/dev/null 2>&1
+    step 0
+    echo "slideshow started: $(get_dir), every ${minutes}min"
+    ;;
+  stop)
+    systemctl --user disable --now "$TIMER_UNIT" >/dev/null 2>&1 || true
+    echo "slideshow stopped (current image stays)"
+    ;;
+  dir)
+    if [[ $# -ge 2 ]]; then
+      d="$(realpath "$2")"
+      [[ -d $d ]] || { echo "not a directory: $d" >&2; exit 1; }
+      echo "$d" > "$DIR_FILE"
+      echo 0 > "$INDEX_FILE"
+      echo "set to $d"
+      apply_index 0 || true
+    else
+      get_dir
+    fi
+    ;;
+  status)
+    cur=0
+    [[ -f $INDEX_FILE ]] && cur=$(cat "$INDEX_FILE")
+    n=$(list_images | grep -c . || true)
+    state="stopped"
+    systemctl --user is-active --quiet "$TIMER_UNIT" && state="running"
+    echo "state:    $state"
+    echo "dir:      $(get_dir)"
+    echo "image:    $((cur + 1)) of ${n:-0}"
+    echo "current:  $(readlink -f "$HOME/.local/state/omarchy/current/background")"
+    ;;
+  *)
+    echo "usage: wallpaper-slideshow {next|prev|start [minutes]|stop|status|dir [path]}" >&2
+    exit 1
+    ;;
+esac
