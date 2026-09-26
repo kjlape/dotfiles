@@ -11,6 +11,7 @@
 #   stop               disable the timer
 #   status             what's playing, from where, on what interval
 #   dir [path]         get or set the source directory (resets to image 0)
+#   reset              restore defaults: default dir, image 0 (timer untouched)
 #
 # State:   ~/.local/state/wallpaper-slideshow/
 # Timer:   ~/.config/systemd/user/wallpaper-slideshow.timer
@@ -90,7 +91,11 @@ EOF
 Description=Wallpaper slideshow timer
 
 [Timer]
-OnBootSec=1min
+# OnActiveSec (not OnBootSec): it anchors to timer start, so it always has a
+# valid elapse. OnBootSec is anchored to system boot and is already in the
+# past by the time a user timer loads, which leaves OnUnitActiveSec without
+# an anchor and the timer wedged in "active (elapsed)" forever.
+OnActiveSec=1min
 OnUnitActiveSec=${minutes}min
 Persistent=true
 
@@ -119,6 +124,11 @@ EOF
       get_dir
     fi
     ;;
+  reset)
+    rm -f "$DIR_FILE" "$INDEX_FILE"
+    echo "reset to $(get_dir)"
+    apply_index 0 || true
+    ;;
   status)
     cur=0
     [[ -f $INDEX_FILE ]] && cur=$(cat "$INDEX_FILE")
@@ -131,7 +141,7 @@ EOF
     echo "current:  $(readlink -f "$HOME/.local/state/omarchy/current/background")"
     ;;
   *)
-    echo "usage: wallpaper-slideshow {next|prev|start [minutes]|stop|status|dir [path]}" >&2
+    echo "usage: wallpaper-slideshow {next|prev|start [minutes]|stop|status|dir [path]|reset}" >&2
     exit 1
     ;;
 esac
