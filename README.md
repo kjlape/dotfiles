@@ -14,6 +14,23 @@ Do not run this unless you're me.
 /bin/bash -c "$(curl https://raw.githubusercontent.com/kjlape/dotfiles/master/yolo.sh)"
 ```
 
+## Agent skills
+
+`stow-agent-skills/` holds skills for AI coding agents. The generic `~/.agents/skills/` location is the source of truth:
+
+```
+stow-agent-skills/
+  .agents/skills/<name>/SKILL.md                     # the skill itself
+  .claude/skills/<name> -> ../../.agents/skills/<name>
+```
+
+**Claude Code doesn't read `~/.agents/skills/`**, so every skill also needs a relative symlink under `.claude/skills/`:
+
+```
+ln -s ../../.agents/skills/<name> stow-agent-skills/.claude/skills/<name>
+stow -v --target=$HOME stow-agent-skills
+```
+
 ## Guarantee
 
 **Works On My Machine™** guaranteed! 👍
