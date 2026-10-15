@@ -15,7 +15,7 @@ triggers:
 
 ## When to use
 
-Use this skill when a pitch is ready to be broken into implementation work. All four conditions must hold before writing a single file — if any fail, stop and report:
+Use this skill when a pitch is ready to be broken into implementation work. All five conditions must hold before writing a single file — if any fail, stop and report:
 
 1. **Pitch exists.** `pitches/<slug>.md` must be present. If no matching file exists, check `pitches/.archive/<slug>.md` — if found there, the cycle is already complete; stop with that explanation. Otherwise list what is in `pitches/` and stop.
 
@@ -27,6 +27,12 @@ Use this skill when a pitch is ready to be broken into implementation work. All 
 3. **Pitch has all five required sections.** Scan the prose for: `## Problem`, `## Appetite`, `## Solution`, `## Rabbit Holes`, `## No Gos`. List any missing sections and stop.
 
 4. **No existing slice directory.** Check whether `slices/<slug>/` or `slices/.archive/<slug>/` already exists. If either does, list its contents and stop — do not overwrite without explicit confirmation.
+
+5. **Current review and human betting decision.** Check `pitches/.reviews/<slug>.md`. If present, read it in full and require `verdict: ready_for_betting`, `betting_decision: approved`, and a `pitch_sha256` matching the SHA-256 of the exact current pitch file bytes (for example, compute with `sha256sum pitches/<slug>.md`). Missing or malformed fields, a stale digest, an unready verdict, or pending/declined approval block slicing: return to `stress-test-pitch` (`../stress-test-pitch/SKILL.md`) and the human betting decision. Do not infer approval from the slicing request or rewrite the review to make it pass. Check the digest before this skill changes lifecycle frontmatter; those later lifecycle changes do not require a new product review.
+
+   If the approved outcome is a non-software intervention, stop: hand off its bounded action, agreed owner, and evaluation checkpoint rather than inventing software implementation work to satisfy this skill.
+
+   For an older or otherwise unreviewed pitch with no review record, recommend `stress-test-pitch` first. Proceed without review only if the user explicitly chooses to bypass it for this pitch and approves the bet. Record this exception in `00-overview.md` and flag it in the handoff; never create a passing review record on their behalf. This exception does not override an existing stale or non-passing review.
 
 ---
 

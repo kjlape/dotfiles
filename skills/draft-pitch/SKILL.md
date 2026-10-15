@@ -123,4 +123,4 @@ Confirm to the user:
 - File written: `pitches/<slug>.md`
 - Appetite recorded
 - Any judgment calls made (scope edges inferred, sections condensed) worth flagging
-- Next step: run the `draft-slices` skill (`skills/draft-slices/SKILL.md`) when ready to begin the cycle
+- Next step: run `stress-test-pitch` (`../stress-test-pitch/SKILL.md`) to challenge business value, causal assumptions, and scope before the human betting decision. `status: pitched` means drafted, not validated or approved. After review and explicit approval of the bet, run `draft-slices` (`../draft-slices/SKILL.md`).

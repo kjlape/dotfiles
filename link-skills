@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Link selected skills into a repository-local directory for Stow to install."""
+
+import argparse
+import os
+from pathlib import Path
+
+
+def link_skills(repo, target_dir, names):
+    target = (repo / target_dir).resolve()
+    sources = repo / "skills"
+    if not target.is_relative_to(repo):
+        raise ValueError("target directory must be inside this repository")
+    if target.is_relative_to(sources.resolve()):
+        raise ValueError("target directory must not be inside the skill sources")
+
+    # Validate the whole request before creating directories or changing links.
+    links = []
+    for name in dict.fromkeys(names):
+        if name in ("", ".", "..") or Path(name).name != name:
+            raise ValueError(f"expected a skill name, not a path: {name!r}")
+        source = sources / name
+        if not (source / "SKILL.md").is_file():
+            raise ValueError(f"unknown skill {name!r}: expected skills/{name}/SKILL.md")
+        link = target / name
+        if not link.is_symlink() and link.exists():
+            raise ValueError(f"refusing to replace an existing file or directory: {link}")
+        links.append((link, os.path.relpath(source, target)))
+
+    target.mkdir(parents=True, exist_ok=True)
+    for link, relative_source in links:
+        label = link.relative_to(repo)
+        if link.is_symlink():
+            if os.readlink(link) == relative_source:
+                print(f"unchanged {label} -> {relative_source}")
+                continue
+            link.unlink()
+        link.symlink_to(relative_source, target_is_directory=True)
+        print(f"linked {label} -> {relative_source}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Link only the named skills from skills/ into a repository-local directory.",
+        epilog="Unmentioned links are left alone. Requires Python 3.9 or newer.",
+    )
+    parser.add_argument(
+        "target_dir",
+        help="destination directory, relative to the repository root (not the working directory)",
+    )
+    parser.add_argument("skills", nargs="+", metavar="skill", help="skill directory names under skills/")
+    args = parser.parse_args()
+    try:
+        link_skills(Path(__file__).resolve().parent, args.target_dir, args.skills)
+    except (OSError, ValueError, RuntimeError) as error:
+        parser.exit(1, f"error: {error}\n")
+
+
+if __name__ == "__main__":
+    main()
