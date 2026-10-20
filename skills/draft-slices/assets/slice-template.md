@@ -20,11 +20,6 @@ wave: <N>
 
 <One sentence: single responsibility + which layer (functional core / imperative shell / orchestrator / CLI).>
 
-```ruby
-# Key method signatures and logic — enough to implement without ambiguity.
-# Show the public interface and any non-obvious internals.
-```
-
 ### <Second component if needed> — `lib/squad/<path>.rb`
 
 ...
@@ -33,7 +28,18 @@ wave: <N>
 
 ## Tests
 
-- `<ClassName>#<method>` <what is asserted and under what conditions>
-- `<ClassName>#<method>` raises `<ErrorClass>` when <condition>
-- CLI: `squad <command>` exits 0 and prints <expected output>
-- Integration (`SQUAD_INTEGRATION=1`): <what real runtime behavior is verified — only for slices touching Docker/Podman>
+- <Behavior>: <what is asserted and under what conditions>
+- <Error path>: <what fails and how the failure is surfaced>
+- CLI/acceptance: `<command>` <expected observable result>
+- Integration (only when the slice touches a real runtime): <what runtime behavior is verified>
+
+---
+
+## Deployment
+
+Rollout plan when this slice ships something operators or users must sequence: schema or data migration, config or env var, feature flag, service restart, dependency install, or user-visible behavior that cannot be switched on atomically. Otherwise replace the bullets below with "Not applicable — <reason>."
+
+- **Order / rollout:** <what ships before or after what; flags and their default state>
+- **Data:** <migration or backfill, idempotency, how to verify it applied>
+- **Rollback:** <revert steps, and what makes rollback unsafe>
+- **Post-deploy verification:** `<command or signal>` → expected <result>

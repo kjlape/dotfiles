@@ -1,7 +1,7 @@
 ---
 name: draft-slices
 description: Draft a new cycle's slice directory — 00-overview.md + numbered slice files — from a validated pitch. Use when a pitch exists with status "pitched" and you need to break it into implementable vertical slices.
-version: "1.0"
+version: "1.2"
 triggers:
   - "draft slices"
   - "write slices"
@@ -49,7 +49,35 @@ Read the full pitch before designing anything. Extract:
 
 ---
 
-### Step 2 — Design the dependency graph
+### Step 2 — Ground the pitch in the codebase
+
+The pitch describes intent; the repository describes reality. Before mapping work streams, read the code the cycle will touch. Budget this as structure-and-entry-points reading, not a full-tree read.
+
+- List the directories and modules likely involved, plus their immediate neighbours.
+- Read the head of the relevant files and their public interfaces — enough to learn existing patterns, naming, and layering.
+- Read the tests nearest the proposed work to learn how behavior is verified here.
+- Read manifests and lockfiles to know which libraries, versions, and scripts are actually available.
+- Check the functional core / imperative shell boundary as it already exists, so new slices extend it rather than inventing a parallel convention.
+
+Cite what you learned as `path:line` in `00-overview.md` (Context, Architecture Conventions) and use it to sanity-check the pitch's work streams. If the codebase contradicts the pitch's Solution — a named library is absent, a module it assumes does not exist, a pattern it forbids is load-bearing — stop and report. That is a pitch-level finding, not a slicing decision; route it back to the pitch or `stress-test-pitch`.
+
+---
+
+### Step 3 — Confirm feasibility against the codebase
+
+The review at `pitches/.reviews/<slug>.md` is evidence, not proof: it confirms the bet was examined, not that its technical assumptions still hold against this checkout. Trust it, then verify the parts that would invalidate a slice if wrong:
+
+- Every library, tool, service, or API the Solution depends on exists at the version available here, or is declared as a prerequisite.
+- Any migration, schema change, or data shape the slices assume is compatible with what is on disk.
+- Unresolved technical questions from the review are answered or carried forward explicitly — never assumed away.
+
+Research with whatever means are available: lockfiles and manifests, installed tool versions, `--help`, upstream source and changelogs, documentation, a scratch probe, web search/fetch if present, or asking the user. Record what you checked and the source. If something cannot be verified, label it an assumption in the overview and say what would settle it — never present recall as confirmation.
+
+If verification shows the pitch is not buildable as written, stop and route the finding back to the pitch or `stress-test-pitch` rather than re-slicing around a different solution.
+
+---
+
+### Step 4 — Design the dependency graph
 
 Map the work streams to slices and assign wave numbers.
 
@@ -67,21 +95,30 @@ Map the work streams to slices and assign wave numbers.
 
 ---
 
-### Step 3 — Write `slices/<slug>/00-overview.md`
+### Step 5 — Write `slices/<slug>/00-overview.md`
 
 Use the template at `assets/overview-template.md`. Fill in all placeholder fields; do not leave any `<angle bracket>` tokens in the output.
 
 ---
 
-### Step 4 — Write each `slices/<slug>/NN-<name>.md`
+### Step 6 — Write each `slices/<slug>/NN-<name>.md`
 
 Use the template at `assets/slice-template.md` for every slice file. Every field in the template is required — do not omit sections.
 
-**One deliverable per file.** If a slice touches multiple files, list each with its own `### Component — path` subsection.
+**One deliverable per file.** If a slice touches multiple files, list each with its own `### Component — path` subsection. Keep each entry to a responsibility and a path — signatures, ordering, and interface detail belong in the implementation plan (`slice-planner`), not here.
+
+**Audit every slice for minimality and sufficiency** before updating the pitch. For each slice:
+
+- **Minimal:** every Deliverable and test traces to the slice's `Done when` and to a work stream in the pitch. Drop "while we're here" work, speculative abstractions, and refactors that do not serve the observable outcome — record them as follow-ups instead.
+- **Sufficient:** an implementer can reach `Done when` from the slice file plus its declared dependencies alone — no missing interface, migration, or wiring step. If they cannot, scope is missing.
+- **No duplication:** no deliverable is built in two slices, and work assigned to an earlier slice is not quietly folded into a later one.
+- **Right-sized:** a slice finishable in minutes is a step, not a slice — merge it. A slice that cannot plausibly finish in a few hours is too fat — split it or cut scope.
+
+Record the verdict in the Slice Audit table in `00-overview.md`, including any slice you merged, split, or trimmed and why. Do not mark a slice sufficient just to avoid reopening the graph.
 
 ---
 
-### Step 5 — Update pitch frontmatter
+### Step 7 — Update pitch frontmatter
 
 After all files are written, update `pitches/<slug>.md`:
 
@@ -102,10 +139,17 @@ Apply to every slice before finishing. Fix any failures before moving on.
 - "Done when" is observable: a test passes, a command prints something, a file is created — not "code is implemented"
 - No slice is purely a layer (schema only, file only, config only) — each is end-to-end functionality
 - Every Deliverable has an exact file path
-- Key public methods and their signatures appear in pseudocode — the implementer should not have to guess the interface
 - No slice requires crossing a Rabbit Hole or implementing a No Go from the pitch
 - Dependencies in each slice header match the dependency graph in `00-overview.md`
-- Tests section includes at least one unit test and one CLI-level or acceptance test per slice
+- Tests section names at least one behavior/unit test and one CLI-level or acceptance test per slice
+- Deployment section is present: either a rollout, migration, flag, and rollback plan, or an explicit "Not applicable — <reason>"
+- Every Deliverable and test traces to the slice's "Done when" and to a pitch work stream; no opportunistic work
+- Each slice is sufficient with only its declared dependencies — no missing interface, migration, or wiring step
+- No deliverable is duplicated across slices, and earlier-wave work is not silently folded into a later slice
+- Every new library, tool, service, migration, or config value appears in Prerequisites with a delivering slice
+- Feasibility claims name their source or are labeled assumptions — never asserted from memory
+- Discovery findings in `00-overview.md` cite `path:line`; no invented modules or files
+- Cross-slice risks and per-wave checkpoints are recorded in the overview
 
 ---
 
@@ -115,4 +159,10 @@ Confirm to the user:
 - Files written: list each path
 - Wave structure: one-line summary (e.g., "Wave 1: 01 → Wave 2: 02 + 03 in parallel → Wave 3: 04")
 - Pitch updated: confirm `status`, `started`, `slices` fields
+- Prerequisites: new dependencies/tools and which slice delivers each, or "none"
+- Slice audit: verdict, plus any slice merged, split, or trimmed and why
+- Feasibility: what you verified and with which sources, and every assumption you could not confirm
+- Risks and wave checkpoints: confirm they are recorded in `00-overview.md`
+- Deployment: list slices with a real rollout/migration plan and slices marked not applicable, with the reason
 - Any judgment calls made (slices combined, rabbit holes avoided) worth flagging
+- Next step: each slice is now ready for implementation planning with `slice-planner` (`../slice-planner/SKILL.md`), which turns one slice file into ordered steps, exact files, and runnable verification commands without changing this cycle's scope or dependency graph
