@@ -20,33 +20,38 @@ An index: read only the doc matching the job. Answer "what is this app, where is
 
 ## Pick the doc
 
-| Situation | Read |
-|---|---|
-| One question — schema, a route, where a file/constant lives; small bug fix or feature | [daily-checks.md](references/daily-checks.md) |
-| Change other files depend on — model, concern, base class, shared service, column; rename; delete; "what breaks?" | [refactor.md](references/refactor.md) |
-| Semantic facts: definitions, references, ancestors, descendants, fat classes | [rubydex.md](references/rubydex.md) |
-| Literals, comments, ERB/YAML, DSL call shapes; local vs method confusion | [search.md](references/search.md) |
-| Static answers insufficient — callbacks firing, concerns composing, boot wiring, `define_method` | [runtime.md](references/runtime.md) |
+Paths are relative to this file; each doc is self-contained.
 
-## Which doc answers what
+references/daily-checks.md — Tier 0, no installs: one question — schema, a route, where a file/constant lives; small bug fix or feature.
+references/refactor.md — cross-cutting: change other files depend on — model, concern, base class, shared service, column; rename; delete; "what breaks?".
+references/rubydex.md — Tier 1, semantic facts: definitions, references, ancestors, descendants, fat classes.
+references/search.md — Tier 2, literals, comments, ERB/YAML, DSL call shapes; local vs method confusion.
+references/runtime.md — Tier 3, static answers insufficient: callbacks firing, concerns composing, boot wiring, `define_method`.
 
-| Question | Where |
-|---|---|
-| Tables/columns? | `daily-checks.md` — `db/schema.rb` |
-| URLs → actions? | `daily-checks.md` — `bin/rails routes --expanded` |
-| Real constants (autoloading)? | `daily-checks.md` — `zeitwerk:check` |
-| Component boundaries? | `daily-checks.md` — packwerk |
-| A model's attribute/association surface? | `daily-checks.md` — tapioca RBIs, `annotate` |
-| Where `Foo::Bar` is defined / what it contains? | `rubydex.md` |
-| Who references `Foo::Bar`? | `rubydex.md` |
-| What inherits from / includes this? | `rubydex.md` |
-| The fat class / where complexity concentrates? | `rubydex.md` aggregate query |
-| Is this symbol used anywhere? | `rubydex.md`, then `search.md` to confirm |
-| "Every `has_many` with `dependent: :destroy`" | `search.md` — ast-grep |
-| Local variable, method or ivar? | `search.md` — `referral` |
-| Which scope does this occurrence live in? | `search.md` — `referral --scope` |
-| Literal strings, comments, logs, YAML/ERB | `search.md` — `rg` |
-| Does it work at runtime? | `runtime.md` — `bin/rails runner` |
+## What answers what
+
+daily-checks.md
+- db/schema.rb — tables, columns
+- bin/rails routes --expanded — URL→action
+- zeitwerk:check — real constants (autoloading)
+- packwerk — component boundaries
+- tapioca RBIs, annotate — model attribute/association surface
+
+rubydex.md
+- Foo::Bar — where defined, what it contains
+- who references it
+- what inherits from / includes it
+- fat class / where complexity concentrates (aggregate query)
+- symbol used anywhere? then search.md to confirm
+
+search.md
+- rg — literal strings, comments, logs, YAML/ERB
+- ast-grep — DSL shapes, e.g. every has_many with dependent: :destroy
+- referral — local variable vs method vs ivar
+- referral --scope — which scope an occurrence lives in
+
+runtime.md
+- bin/rails runner — does it work
 
 ## Default: don't tool up
 
@@ -72,16 +77,3 @@ An MCP server for one question costs more than reading the file.
 - **Answering "is this dead?" from one tool** — resolve refs (Tier 1), then grep the symbol plus `send(:sym)`/string forms (Tier 2); full checklist in `refactor.md`.
 - **Installing an MCP server for one question** — `rg` is one call.
 - **Trusting advertised features** — `rubydex.md` and `search.md` list what was verified in the installed versions; don't promise the rest.
-
-## Layout
-
-```
-SKILL.md                      this index
-references/daily-checks.md    Tier 0: Rails-native artifacts + rg, no installs
-references/refactor.md        cross-cutting changes, blast radius, renames, dead code
-references/rubydex.md         Tier 1: install, guard, MCP tools, CLI, Cypher cookbook
-references/search.md          Tier 2: rg, ast-grep, referral, universal-ctags
-references/runtime.md         Tier 3: bin/rails runner, runtime MCPs
-```
-
-Paths are relative to this file; each doc is self-contained, so load only what the job needs.
