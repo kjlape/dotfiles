@@ -30,6 +30,12 @@ To preview discovery from a local checkout without installing anything:
 npx skills add . --list
 ```
 
+### Adding a skill
+
+1. Create `skills/<name>/SKILL.md` with frontmatter — `name` (must match the directory) and a `description` that says what it does and when to use it. Supporting `assets/` and `scripts/` go alongside.
+2. Link it into the harness dirs that should get it (see below).
+3. `./install.sh`, then `npx skills add . --list` to confirm discovery.
+
 ### Stow installation
 
 The links tracked under `stow-agent-skills/` select which skills each harness receives. `./install.sh` installs those selections with Stow; it does not automatically install everything in `skills/` into every harness.
