@@ -1,6 +1,6 @@
 ---
 name: rails-context
-description: Orient in a Ruby/Rails repo with fewest tokens: schema, routes, ripgrep first, no installs. Escalate for cross-cutting changes only — Rails artifacts (schema, routes, zeitwerk, packwerk, tapioca RBIs), then Rubydex semantics (declarations, ancestors, references, descendants), structural search, runtime. Use to map a codebase, find definitions/references, plan a cross-file refactor, see what a change breaks, find dead code, or stop reading whole files.
+description: "Orient in a Ruby/Rails repo with fewest tokens: schema, routes, ripgrep first, no installs. Escalate for cross-cutting changes only — Rails artifacts (schema, routes, zeitwerk, packwerk, tapioca RBIs), then Rubydex semantics (declarations, ancestors, references, descendants), structural search, runtime. Use to map a codebase, find definitions/references, plan a cross-file refactor, see what a change breaks, find dead code, or stop reading whole files."
 version: "2.0"
 triggers:
   - "orient in this rails repo"
