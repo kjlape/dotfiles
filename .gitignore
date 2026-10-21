@@ -11,3 +11,6 @@
 !/stow-xdg/.config/kitty/
 
 *.bak
+
+tests/__pycache__/
+.pi/tasks/
