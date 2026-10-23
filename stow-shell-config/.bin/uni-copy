@@ -3,10 +3,16 @@
 data=$(cat)
 b64=$(printf '%s' "$data" | base64 | tr -d '\n')
 
+osc52() { printf "\033]52;c;%s\007" "$b64"; }
+
+# herdr panes lack SSH_* when the persistent server started outside ssh, so
+# the attached client may be remote; emit OSC 52 as well as any local copy.
+[[ -n "$HERDR_ENV" ]] && osc52
+
 if [[ -n "$TMUX" ]]; then
   printf "\033Ptmux;\033\033]52;c;%s\007\033\\" "$b64"
 elif [[ -n "$SSH_CLIENT" || -n "$SSH_TTY" ]]; then
-  printf "\033]52;c;%s\007" "$b64"
+  osc52
 elif which pbcopy &>/dev/null; then
   pbcopy <<< "$data"
 elif which wl-copy &>/dev/null; then
