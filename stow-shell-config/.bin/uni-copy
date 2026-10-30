@@ -3,31 +3,14 @@
 data=$(cat)
 b64=$(printf '%s' "$data" | base64 | tr -d '\n')
 
-# Write to the terminal fzf's execute-silent or other wrappers may have
-# detached from stdout. Fails loudly if there is no terminal at all.
-term_write() {
-  if [[ -t 1 ]]; then
-    printf %s "$1"
-  elif { printf %s "$1" > /dev/tty; } 2>/dev/null; then
-    :
-  elif [[ -n "$UNI_COPY_ALLOW_STDOUT" ]]; then
-    # Caller guarantees stdout is displayed somewhere (e.g. agent tool output
-    # rendered in a pane), even though it is not a tty from here.
-    printf %s "$1"
-  else
-    echo 'uni-copy: no terminal available (stdout is not a tty and /dev/tty is unwritable); clipboard NOT set' >&2
-    exit 1
-  fi
-}
-
-osc52() { term_write "\033]52;c;$b64\007"; }
+osc52() { printf "\033]52;c;%s\007" "$b64"; }
 
 # herdr panes lack SSH_* when the persistent server started outside ssh, so
 # the attached client may be remote; emit OSC 52 as well as any local copy.
 [[ -n "$HERDR_ENV" ]] && osc52
 
 if [[ -n "$TMUX" ]]; then
-  term_write "\033Ptmux;\033\033]52;c;$b64\007\033\\"
+  printf "\033Ptmux;\033\033]52;c;%s\007\033\\" "$b64"
 elif [[ -n "$SSH_CLIENT" || -n "$SSH_TTY" ]]; then
   osc52
 elif which pbcopy &>/dev/null; then
@@ -37,6 +20,5 @@ elif which wl-copy &>/dev/null; then
 elif which xdg-copy &>/dev/null; then
   xdg-copy <<< "$data"
 else
-  echo 'uni-copy: no copy mechanism available (no OSC 52 context, no pbcopy/wl-copy/xdg-copy); clipboard NOT set' >&2
-  exit 1
+  echo "$data"
 fi
