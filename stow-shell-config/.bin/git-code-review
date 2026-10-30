@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# gdr: git diff review. Usage: gdr [base] [feature]
+base=${1:-master}
+feature=${2:-HEAD}
+range="$base...$feature"
+
+git diff --numstat "$range" |
+  fzf --disabled --reverse --no-sort --delimiter=$'\t' \
+      --header "$range   j/k move · g/G top/bottom · enter open · ctrl-d/u scroll preview · q quit" \
+      --preview "git diff --color=always $range -- {3} | delta --paging=never" \
+      --preview-window=right,70% \
+      --bind 'j:down,k:up,g:first,G:last,q:abort' \
+      --bind 'ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up' \
+      --bind "enter:execute(git diff --color=always $range -- {3} | delta --paging=always)"
