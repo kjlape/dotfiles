@@ -19,8 +19,8 @@ range="$base...$feature"
 
 git diff --numstat "$range" |
   fzf --reverse --no-sort --delimiter=$'\t' \
-      --header "$range   enter open · ctrl-o copy path · ctrl-d/u scroll preview · esc quit" \
+      --header "$range   enter open · ctrl-y copy path · ctrl-d/u scroll preview · esc quit" \
       --preview "git diff --color=always $range -- {3} | delta --paging=never" \
       --preview-window=right,70% \
-      --bind 'ctrl-o:execute-silent(printf %s {3} | uni-copy > /dev/tty)' \
+      --bind 'ctrl-y:execute-silent(printf %s {3} | uni-copy > /dev/tty)' \
       --bind "enter:execute(git diff --color=always $range -- {3} | delta --paging=always)"
