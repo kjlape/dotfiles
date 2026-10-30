@@ -1,7 +1,20 @@
 #!/usr/bin/env bash
-# gdr: git diff review. Usage: gdr [base] [feature]
-base=${1:-master}
+# gdr: git diff review. Usage: gdr [base] [feature] | gdr setup
+pref_file=$(git rev-parse --git-dir 2>/dev/null)/code-review-base
+pref=$([[ -f $pref_file ]] && head -n1 "$pref_file")
+base=${1:-${pref:-master}}
 feature=${2:-HEAD}
+
+if [[ $1 == setup ]]; then
+  default=${pref:-$(git symbolic-ref --short HEAD 2>/dev/null || echo master)}
+  printf 'Base branch for git-code-review%s: ' " [$default]" >&2
+  read -r answer
+  base=${answer:-$default}
+  printf '%s\n' "$base" > "$pref_file"
+  echo "Saved base branch '$base' to $pref_file" >&2
+  exit 0
+fi
+
 range="$base...$feature"
 
 git diff --numstat "$range" |
