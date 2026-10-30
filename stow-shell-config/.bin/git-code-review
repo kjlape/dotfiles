@@ -19,10 +19,13 @@ range="$base...$feature"
 
 git diff --numstat "$range" |
   fzf --disabled --reverse --no-sort --delimiter=$'\t' \
-      --header "$range   j/k move · g/G top/bottom · enter open · y copy path · ctrl-d/u scroll preview · q quit" \
+      --header "$range   j/k move · g/G top/bottom · / filter · ctrl-l clear · enter open · y copy path · ctrl-d/u scroll preview · q quit" \
       --preview "git diff --color=always $range -- {3} | delta --paging=never" \
       --preview-window=right,70% \
       --bind 'j:down,k:up,g:first,G:last,q:abort' \
+      --bind '/:enable-search+unbind(j,k,g,G,q)' \
+      --bind 'esc:disable-search+rebind(j,k,g,G,q)' \
+      --bind 'ctrl-l:clear-query' \
       --bind 'y:execute-silent(printf %s {3} | uni-copy)' \
       --bind 'ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up' \
       --bind "enter:execute(git diff --color=always $range -- {3} | delta --paging=always)"
