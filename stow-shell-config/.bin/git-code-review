@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gdr: git diff review. Usage: gdr [base] [feature] | gdr setup
+# gdr: git diff review. Usage: gdr [base] [feature] | gdr worktree | gdr staged | gdr setup
 pref_file=$(git rev-parse --git-dir 2>/dev/null)/code-review-base
 pref=$([[ -f $pref_file ]] && head -n1 "$pref_file")
 base=${1:-${pref:-master}}
@@ -15,12 +15,17 @@ if [[ $1 == setup ]]; then
   exit 0
 fi
 
-range="$base...$feature"
+case ${1:-} in
+  worktree) diff=(git diff) ;;                        # unstaged only
+  staged)   diff=(git diff --cached) ;;                # staged only
+  *)        diff=(git diff "$base...$feature") ;;      # committed range
+esac
 
-git diff --numstat "$range" |
+"${diff[@]}" --numstat |
   fzf --reverse --no-sort --delimiter=$'\t' \
-      --header "$range   enter open · ctrl-y copy path · ctrl-d/u scroll preview · esc quit" \
-      --preview "git diff --color=always $range -- {3} | delta --paging=never" \
+      --header "${diff[*]}   enter open · ctrl-y copy path · ctrl-d/u scroll preview · esc quit" \
+      --preview "${diff[*]} --color=always -- {3} | delta --paging=never" \
       --preview-window=right,70% \
       --bind 'ctrl-y:execute-silent(printf %s {3} | uni-copy > /dev/tty)' \
-      --bind "enter:execute(git diff --color=always $range -- {3} | delta --paging=always)"
+      --bind 'ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up' \
+      --bind "enter:execute(${diff[*]} --color=always -- {3} | delta --paging=always)"
