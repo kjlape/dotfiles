@@ -3,8 +3,9 @@ status: planned
 completed: ~
 audited: <today YYYY-MM-DD>
 wave: <N>                 # ship order, 1-based; equal numbers only for genuinely parallel slices
-size_class: <normal | preparatory | sweep>
-est_loc: <N>              # changed LOC excluding tests, docs, lockfiles, generated; <=100 (<=30 preparatory)
+size_class: <normal | sweep>
+est_loc: <N>              # changed LOC excluding tests, docs, lockfiles, generated; <=100 unless sweep or size_exception
+axis: <split axis vs the prior slice: workflow step, operation, business rule, data variant, entry method, simple vs complex, or deferred performance — "none" only for slice 01>
 analogue: <commit sha or path:line of a similar past change and its measured size, or "none found">
 size_exception: ~         # reason, only if over budget and not a sweep
 pr: ~                     # PR URL, filled when shipped
@@ -16,7 +17,7 @@ commits: ~                # implementing commit SHAs, filled when shipped
 **Depends on:** <slug of prior slice, e.g. "01-report-form-saves", or "none">
 **Parallel with:** <slug of sibling slice(s), or "none">
 
-**Ships:** <One sentence: what a user or operator can observe in production after this merges. "Nothing yet" means the slice is `preparatory`.>
+**Job:** <One line: When [circumstance], [actor] can [progress], observed via [named command / log line / UI / query]. Actor is an end user, admin, system/operator, or dev; a dev actor requires a concrete before/after check.>
 
 **Done when:** <Observable, testable criteria. Write it as something a test can assert or a human can see: "bundle exec rake test passes with N new tests", "`squad up --engine podman` starts a container visible in `podman ps`", etc. Never write "the code is written" or "the class is implemented".>
 

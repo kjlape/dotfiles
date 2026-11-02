@@ -24,20 +24,20 @@ No entry may be left without a delivering slice. Anything unverified is marked `
 
 ## Ship Sequence
 
-Each row is one PR that merges and deploys on its own, in this order. Slice 01 is the thinnest end-to-end tracer. No wiring or integration slice.
+Each row is one PR that merges and deploys on its own, in this order. Slice 01 is a walking skeleton (dev/system actor, hello-world size) unless the repo already has an end-to-end path. No wiring or integration slice.
 
-| # | Slice | Class | Est LOC | Analogue | Ships (observable in production) |
+| # | Slice | Class | Est LOC | Analogue | Job step (when / actor / progress / observed via) |
 |---|---|---|---|---|---|
-| 1 | `01-<name>` | normal | <N> | <sha, size> | <what a user or operator can now do> |
-| 2 | `02-<name>` | normal | <N> | <sha, size> | <what is newly observable> |
+| 1 | `01-<name>` | normal | <N> | <sha, size> | <e.g. when I change code, I see it build, deploy and pass one e2e check> |
+| 2 | `02-<name>` | normal | <N> | <sha, size> | <first user-facing job step> |
 
 Parallel slices, if any, touch disjoint files and are listed with the same number. Shared files mean sequence them.
 
 ## Slice Audit
 
-| Slice | Minimal | Sufficient | Right-sized | Notes |
+| Slice | Minimal | Sufficient | Right-sized | Floor (actor / axis / buys) | Notes |
 |---|---|---|---|---|
-| `01-<name>` | <every deliverable and test traces to Done when + a pitch work stream> | <slice plus declared dependencies reaches Done when> | <est_loc <=100 with analogue, or preparatory <=30, or sweep rules met> | <split, trimmed, size_exception reason, or none> |
+| `01-<name>` | <every deliverable and test traces to Done when + a pitch work stream> | <slice plus declared dependencies reaches Done when> | <est_loc <=100 with analogue, or sweep rules met> | <named actor + circumstance / axis from `axis:` / what the split buys> | <split, trimmed, re-cut, size_exception reason, or none> |
 
 **Verdict:** <one sentence — the set is minimal and sufficient, or what changed and why.>
 
@@ -51,7 +51,7 @@ Cross-slice risks only; per-slice tests live in the slice files. Include integra
 
 ### Ship checkpoints
 
-- [ ] After slice 01: `<command>` passes; <the tracer path is observable in production>
+- [ ] After slice 01: `<command>` passes; <the skeleton path — build, deploy, one e2e check — is observable>
 - [ ] After slice N: `<command>` passes; <newly observable behavior>
 - [ ] Final: <the pitch's outcome is observable — quote it>
 - [ ] Size review: compare each shipped slice's actual LOC to `est_loc`; record the drift in the slice's `commits`/`pr` fields

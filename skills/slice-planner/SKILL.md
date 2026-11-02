@@ -28,7 +28,7 @@ Use when the user points at `slices/<slug>/NN-<name>.md`. All conditions must ho
 
 1. **A slice exists.** If none is named, list `slices/` and ask. If no slice directory exists, hand off to `draft-slices` — do not invent slices.
 
-2. **The slice is complete enough:** `Depends on:` and `Parallel with:` in the header, an observable `Done when:`, at least one `### <Component> — <path>` deliverable with an exact path, and a `## Tests` section. Missing fields are underspecified — report the gap to `draft-slices`; do not fill it by assumption.
+2. **The slice is complete enough:** `Depends on:` and `Parallel with:` in the header, a Job section in the job-step form, an observable `Done when:`, at least one `### <Component> — <path>` deliverable with an exact path, and a `## Tests` section. Frontmatter must also carry `size_class`, `est_loc`, `analogue`, and `axis:`. Missing fields are underspecified — report the gap to `draft-slices`; do not fill it by assumption.
 
 3. **Constraints are in hand.** Read `pitches/<slug>.md` (Problem, Appetite, Solution, Rabbit Holes, No Gos) and `slices/<slug>/00-overview.md` (dependency graph, Architecture Conventions). If the pitch is missing, say so, plan from slice plus overview, and flag reduced confidence. Rabbit Holes and No Gos are hard constraints.
 
