@@ -1,7 +1,7 @@
 ---
 name: slice-planner
 description: Turn one drafted slice into an executable plan — ordered steps, exact files, runnable verification, parallel tracks, and checkpoints. Use after draft-slices, when deciding how to build a slice without changing cycle scope or dependencies.
-version: "1.1"
+version: "1.2"
 triggers:
   - "plan this slice"
   - "slice plan"
@@ -17,7 +17,7 @@ triggers:
 
 Companion to `draft-slices` (`../draft-slices/SKILL.md`).
 
-- **draft-slices** works at cycle altitude: what work exists, cut into vertical slices, with a wave/dependency graph.
+- **draft-slices** works at cycle altitude: what work exists, cut into vertical slices, with a dependency graph (ship order).
 - **slice-planner** works at one-slice altitude: how that slice gets built, step by step, so an implementer can execute it without re-deriving the design.
 
 It plans only: no new slices, waves, pitch edits, or lifecycle changes. If planning shows the slice is wrong, stop and hand the finding to `draft-slices` rather than widening scope.
@@ -30,7 +30,7 @@ Use when the user points at `slices/<slug>/NN-<name>.md`. All conditions must ho
 
 2. **The slice is complete enough:** `Depends on:` and `Parallel with:` in the header, a Job section in the job-step form, an observable `Done when:`, at least one `### <Component> — <path>` deliverable with an exact path, and a `## Tests` section. Frontmatter must also carry `size_class`, `est_loc`, `analogue`, and `axis:`. Missing fields are underspecified — report the gap to `draft-slices`; do not fill it by assumption.
 
-3. **Constraints are in hand.** Read `pitches/<slug>.md` (Problem, Appetite, Solution, Rabbit Holes, No Gos) and `slices/<slug>/00-overview.md` (dependency graph, Architecture Conventions). If the pitch is missing, say so, plan from slice plus overview, and flag reduced confidence. Rabbit Holes and No Gos are hard constraints.
+3. **Constraints are in hand.** Read `pitches/<slug>.md` (Problem, Appetite, Solution, Rabbit Holes, No Gos) and the current map's `00-overview.md` (dependency graph, Architecture Conventions). When multiple versioned maps exist under `slices/<slug>/` (v1, v2, …), plan against the map marked `current` only; ignore maps marked `proposed`. If none is marked current, list the maps and ask the developer to choose before planning. If the pitch is missing, say so, plan from slice plus overview, and flag reduced confidence. Rabbit Holes and No Gos are hard constraints.
 
 4. **The destination is free.** Default `slices/<slug>/plans/NN-<name>-plan.md`; if it exists, show it and ask before overwriting.
 
@@ -43,6 +43,7 @@ Use when the user points at `slices/<slug>/NN-<name>.md`. All conditions must ho
 - a step would implement a No Go or cross a Rabbit Hole
 - the plan needs a deliverable the slice does not list → a slice change; report it for `draft-slices`
 - the slice needs splitting, resequencing, or a new dependency → report it; do not edit the graph
+- the slice lives in a map marked `proposed` while another map is marked `current` (or the developer has not chosen) → do not plan it; say the map choice is pending
 - the baseline is red unrelated to the slice → a precondition, not part of this plan
 
 ## Workflow
@@ -94,7 +95,7 @@ Map every step against the pitch's Rabbit Holes and No Gos and record the check.
 
 Use `assets/plan-template.md`, writing to `slices/<slug>/plans/NN-<name>-plan.md` (create `plans/` if needed).
 
-If the user asks for it inline, replace or create only an `## Implementation Plan` section in the slice. Leave the frontmatter — `status`, `wave`, `completed`, `audited` — and all required fields untouched.
+If the user asks for it inline, replace or create only an `## Implementation Plan` section in the slice. Leave the frontmatter — `status`, `completed`, `audited` — and all required fields untouched.
 
 Do not edit the pitch, review record, or `00-overview.md`.
 
@@ -110,7 +111,7 @@ Tell the user:
 ## Constraints / Do's and Don'ts
 
 - Plan only; do not write implementation code.
-- Do not change the slice's frontmatter, wave, or dependencies.
+- Do not change the slice's frontmatter, ship order, or dependencies.
 - Do not invent deliverables or paths. Propose one only as a flagged slice change for a human to approve.
 - Do not weaken `Done when`; if it is not observable, flag it as a slice defect.
 - Do not skip the baseline — "tests presumably pass" is not a baseline.

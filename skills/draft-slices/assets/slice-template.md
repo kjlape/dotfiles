@@ -1,13 +1,12 @@
 ---
 status: planned
 completed: ~
-audited: <today YYYY-MM-DD>
-wave: <N>                 # ship order, 1-based; equal numbers only for genuinely parallel slices
+audited: ~              # set by the audit skill, never on a fresh draft
 size_class: <normal | sweep>
-est_loc: <N>              # changed LOC excluding tests, docs, lockfiles, generated; <=100 unless sweep or size_exception
+est_loc: <N>              # changed LOC excluding tests, docs, lockfiles, generated; = analogue first-commit size × calibration inflation factor; <=100 unless sweep or size_exception
 axis: <split axis vs the prior slice: workflow step, operation, business rule, data variant, entry method, simple vs complex, or deferred performance — "none" only for slice 01>
-analogue: <commit sha or path:line of a similar past change and its measured size, or "none found">
-size_exception: ~         # reason, only if over budget and not a sweep
+analogue: <PR number or commit sha/path:line of a similar past change and its measured size, or "none (greenfield)">
+size_exception: ~         # cause (new subsystem / first-of-kind surface / measured analogue) + reason, only if over budget and not a sweep
 pr: ~                     # PR URL, filled when shipped
 commits: ~                # implementing commit SHAs, filled when shipped
 ---
