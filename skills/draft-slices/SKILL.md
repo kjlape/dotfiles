@@ -1,7 +1,7 @@
 ---
 name: draft-slices
 description: Draft a cycle's slice directory — 00-overview.md plus numbered slice files — from a validated pitch. Use when a pitch is `pitched` and needs breaking into vertical slices.
-version: "1.9"
+version: "2.0"
 triggers:
   - "draft slices"
   - "write slices"
@@ -13,6 +13,10 @@ triggers:
 
 # Draft Slices
 
+## Instruction precedence
+
+Developer instructions take precedence over this procedure, including review and required-section checks. Follow compatible requirements; explicitly identify each departure and its reason in the overview and handoff. Do not claim a skipped or overridden check passed.
+
 ## Preconditions
 
 Before writing, check all five; stop and report any failure:
@@ -20,7 +24,7 @@ Before writing, check all five; stop and report any failure:
 1. **Pitch:** `pitches/<slug>.md` must exist. If only `pitches/.archive/<slug>.md` exists, the cycle is complete; otherwise list `pitches/`.
 2. **Status:** `pitched` proceeds. `in_progress` with a map from this skill in `slices/<slug>/` follows Re-slicing; without one (or if archived), ask whether to add to that cycle. `complete`: nothing to draft. `abandoned`: confirm intent first.
 3. **Sections:** require `## Problem`, `## Appetite`, `## Solution`, `## Rabbit Holes`, `## No Gos`; list missing sections and stop. In a re-slice, a pitch revised after review is expected; don't block.
-4. **Directory:** if `slices/<slug>/` or `slices/.archive/<slug>/` exists, version a map from this skill per Re-slicing; otherwise list existing content and stop. Never overwrite without explicit confirmation.
+4. **Directory:** if `slices/<slug>/` or `slices/.archive/<slug>/` exists, version a map from this skill per Re-slicing; otherwise list existing content and stop. Never overwrite scope without explicit confirmation; non-scope-changing notes are allowed as described under Re-slicing.
 5. **Review and bet:** if `pitches/.reviews/<slug>.md` exists, require `verdict: ready_for_betting`, `betting_decision: approved`, and `pitch_sha256` matching current pitch bytes (`sha256sum pitches/<slug>.md`). Missing/malformed fields, unready verdict or pending/declined approval block: return to `stress-test-pitch` (`../stress-test-pitch/SKILL.md`) and the human decision. Never infer approval from the request or rewrite the review. Check the digest before lifecycle frontmatter changes; those need no new product review. In a re-slice, a digest mismatch from post-review pitch revisions is expected: record `review stale: pitch revised after review` in the overview and continue; a never-ready verdict or declined approval still blocks. If the approved outcome is non-software, stop and hand off its bounded action, owner and evaluation checkpoint; don't invent software work. With no review, recommend `stress-test-pitch` first; proceed only if the user explicitly bypasses it **and** approves the bet. Record the exception in `00-overview.md` and the handoff; never fabricate a passing review. This doesn't override an existing stale or failing review.
 
 ## Re-slicing an existing map
@@ -29,7 +33,7 @@ Treat this as a second opinion, not an error. Without asking confirmation, open 
 
 > A slice map already exists (v1, drafted with `draft-slices` v1.4, N slices, M shipped). Drafting v2 as a second opinion.
 
-Assume the developer wants this, especially when skill versions differ. Read prior `vN/` directories for the highest version and the earlier overview for its skill version and shipped slices. Write `slices/<cycle>/vN/` with `00-overview.md` and slice files; never overwrite or delete earlier maps. Shipped or in-flight slices stay fixed with actual LOC and PRs; slice only remaining work, referencing shipped slices as context and using their estimated vs actual LOC for calibration.
+Assume the developer wants this, especially when skill versions differ. Read prior `vN/` directories for the highest version and the earlier overview for its skill version and shipped slices. Write `slices/<cycle>/vN/` with `00-overview.md` and slice files; never overwrite or delete earlier maps or change their scope without explicit confirmation. Add non-scope-changing notes to existing slices or maps when useful (for example, a pending map choice); preserve their existing content and scope. Shipped or in-flight slices stay fixed with actual LOC and PRs; slice only remaining work, referencing shipped slices as context and using their estimated vs actual LOC for calibration.
 
 Open the new overview with skill versions, slice counts (shipped separate), remaining-slice merges/splits/reorders/drops and why, and newer-skill rules changing the outcome. Mark the new map `proposed`; both remain on disk. Name the current map only if the developer says so. `slice-planner` builds only the map marked `current`; an unchosen v2 must not be built. Fresh maps go directly in `slices/<slug>/`, implicitly current once pitch frontmatter points there; don't stamp `audited`.
 
@@ -56,7 +60,7 @@ Review examined the bet, not its assumptions against this checkout. Verify libra
 
 ### 4. Calibrate against merged PRs
 
-Before setting the budget, measure team shipping and write an overview **Calibration** table. List the last 40–50 PRs merged to the default branch, e.g.:
+Before estimating slices, measure team shipping and write an overview **Calibration** table. List the last 40–50 PRs merged to the default branch, e.g.:
 
 `gh pr list --state merged --limit 50 --json number,title,additions,deletions,commits,mergedAt,createdAt,reviews,files`
 
@@ -68,16 +72,16 @@ An exemplar must pass **all** screens:
 |---|---|
 | One job | Title and description name one behavior; no "and" in title |
 | Observable | Observable ship, or declared migration/preparatory change |
-| Size | ≤1.5× skill budget |
+| Size | ≤300 LOC (1.5× the 200 LOC breakpoint) |
 | No fix tail | No revert or follow-up "fix" PR within ~7 days touching same files |
 | Healthy review | ≤2 review rounds |
 | Not mechanical | No dependency bump, bulk rename, wave bundle or generated-code import |
 
 A merge alone isn't evidence. Report how many of the 40–50 fail and one line of reason each; if most fail, say team habit isn't a usable norm. Derive median and p75 merged LOC of passing PRs, median merged/first-commit inflation separately for passing and failing PRs (instead of fixed 1.4×/1.5×), and fix-tail rate across both groups.
 
-- ≥8 passing: target their p75, capped at the skill budget; team signal tightens, never loosens.
-- <5 passing: use skill default, ignore team signal, record `team norm: not established`.
-- Each slice: cite closest 1–2 passing PR analogues; `est_loc` = analogue first-commit size × inflation factor. Cross-check bottom-up against named files; explain discrepancies >2×.
+- ≥5 passing: establish the team norm and use the passing PRs to inform estimates; the 200 LOC breakpoint still applies.
+- <5 passing: use the default inflation factor of 1.5×, ignore team signal, record `team norm: not established`.
+- Each slice with an established norm: cite closest 1–2 passing PR analogues; `est_loc` = analogue first-commit size × passing inflation factor. Without an established norm, estimate bottom-up × 1.5 and record `analogue: none (team norm not established)`. For analogue-based estimates, cross-check bottom-up against named files; explain discrepancies >2×.
 - Greenfield: bottom-up × nearest sibling repo's factor, or 1.5× if none; write `analogue: none (greenfield)` once. After first three slices ship, recompute from actuals and re-estimate the rest.
 - Hardening: include inflation factor and name the specific failure closed.
 
@@ -97,7 +101,7 @@ Name slices with verb phrases (`01-report-form-saves`, `02-report-reaches-linear
 
 Slice 01 is a hello-world-sized walking skeleton unless an end-to-end path already exists: "When I change code, I can see it build, deploy and pass one end-to-end check." Without deployment (e.g. local CLI), use the thinnest runnable path: "When I run the binary, one command executes end to end and prints observable output." Actor is dev or system; user value isn't required. Slice 02 is first user-facing; later slices widen cases, entry points, error handling and UI polish.
 
-**Size budget** (audit, constraints and templates defer here): target ≤100 changed LOC excluding tests, docs, lockfiles and generated files; a soft tripwire. Up to 1.5× (≤150) is a shippable exception: record `size_exception:` cause and ship; don't stop in-flight work to re-slice over the number. Past 1.5× signals an oversized job step: re-cut along a split axis, never trim to fit. Causes: **new subsystem** (daemon, store, protocol or engine whose thinnest end-to-end path exceeds budget); **first-of-kind surface** (first slice through a new entry point or integration dominated by scaffolding); **measured analogue** (cited same-shape PR also above budget). New subsystems are almost always over budget: plan their thinnest end-to-end path, then widen; never one slice to "build the subsystem".
+**Size breakpoint** (audit, constraints and templates defer here): estimate changed LOC excluding tests, docs, lockfiles and generated files. Ship slices estimated at or below 200 LOC; split slices estimated above 200 along a real split axis, never trim scope merely to fit. The breakpoint applies to every slice, including mechanical changes.
 
 **Merge floor:** merge neighbours when all hold: ≤40 LOC combined, same component, one shared `Done when` check; except when the small slice independently ships valuable behavior a named actor would notice.
 
@@ -106,13 +110,7 @@ Slice 01 is a hello-world-sized walking skeleton unless an end-to-end path alrea
 2. It differs from its neighbour on a real split axis: workflow step, operation, business rule, data variant, entry method, simple vs complex, or deferred performance.
 3. A concrete buy: merging violates merge-floor conditions, the work is droppable without losing the neighbour's value, or it can be reordered after the neighbour. "Feels cleaner separate" doesn't count.
 
-**Ceiling:** split if the job statement joins two independent observations with "and" (two actors, circumstances or Done-when checks no single test asserts), or exceeds 1.5× budget without a `size_exception` cause. A compound verb for one observation is fine: "save and show the form" is one slice if one test checks it. Each slice must visibly differ from its predecessor. Record and ship smaller overages; if unsure whether an overage is "large", reviewer decides, defaulting to record and ship.
-
-**Size classes** (`size_class` per slice):
-- `normal`: ≤100 LOC, one observable job step.
-- `sweep`: one mechanical transform across many files; only class allowed past 100 LOC, only with a one-sentence transform rule and committed script/codemod/command; a reviewer check not requiring every hunk (deterministic script, 3–5 sample before/after hunks, command showing zero remaining matches); independently mergeable batches by directory/module, each ≤300 changed LOC where tooling allows; no mixed behavior changes. Renames and moves are their own slice.
-
-Record any over-budget non-`sweep` under `size_exception:` with cause and in overview Slice Audit; these are tuning data, not in-flight blockers. Expect few.
+**Ceiling:** split if the job statement joins two independent observations with "and" (two actors, circumstances or Done-when checks no single test asserts), or `est_loc` exceeds 200. A compound verb for one observation is fine: "save and show the form" is one slice if one test checks it. Each slice must visibly differ from its predecessor.
 
 **Other value rules:**
 - If the actor observes nothing after merge, or there's no named actor/circumstance, merge or redesign. Hide unfinished work behind a flag or unlinked route, rather than holding slices back.
@@ -133,7 +131,7 @@ Before updating the pitch, audit each slice:
 - **Minimal:** every Deliverable and test traces to `Done when` and a pitch work stream. Record "while we're here" work, speculative abstractions and unrelated refactors as follow-ups.
 - **Sufficient:** slice plus declared dependencies alone reach `Done when`, with no missing interface, migration, wiring or unlisted call site.
 - **No duplication:** nothing built twice or earlier work silently folded into a later slice.
-- **Right-sized:** budget applies; `est_loc` backed by analogue and inflation, ≤100 preferred. Small is fine if floor passes; don't merge merely for size.
+- **Right-sized:** breakpoint applies; `est_loc` backed by an analogue and inflation or the documented fallback, ≤200. Small is fine if floor passes; don't merge merely for size.
 - **Ships progress:** Job names actor, circumstance and observation and passes floor tests.
 
 Record verdict, merges, splits and trims with reasons in overview Slice Audit. Never mark sufficient merely to avoid reopening the graph.
@@ -156,12 +154,12 @@ Apply to every slice; fix failures before moving on:
 
 - `Done when` is observable (passing test, printed output, created file), not "code is implemented". Tests name at least one test asserting it; acceptance tests only when user-visible. Keep test volume proportionate; tests are outside the size budget.
 - No purely layer slice (schema, file, config): end-to-end functionality or a dev-actor slice with concrete before/after check. No wiring, foundation, integration or polish shape/name; slice 01 is a walking skeleton (or local CLI's thinnest runnable path) unless one exists. No spike/research slice.
-- Each slice has `est_loc` ≤100 with cited `analogue` and inflation factor, or `size_class: sweep` meeting sweep rules, or `size_exception` with cause; name split axis in `axis:`. Job names circumstance, actor, progress and observation and passes floor.
+- Each slice has `est_loc` ≤200 with cited `analogue` and inflation factor or the documented fallback; name split axis in `axis:`. Job names circumstance, actor, progress and observation and passes floor.
 - Every Deliverable has an exact path; every Deliverable and test traces to `Done when` and a pitch stream. No Rabbit Hole crossing or No Go implementation. Each slice is sufficient with declared dependencies; no duplicate deliverable or silent folding into a later slice.
 - Header dependencies match overview ship sequence. Resource creators state removal until teardown; order teardown early when cheap. Slices replacing/reshaping components list every searched constructor and call site, each updated by exactly one slice.
 - Deployment includes rollout, migration, flag, rollback plan, or "Not applicable — <reason>". Every new library, tool, service, migration or config value appears in Prerequisites with a delivering slice.
 - Feasibility claims cite sources or are labeled assumptions, never memory; discovery cites `path:line`, with no invented modules/files. Record cross-slice risks and ship checkpoints in overview.
-- Fresh drafts leave `audited: ~`; only audit skill stamps it. Version existing maps, never overwrite/delete; `slice-planner` builds only the current map.
+- Fresh drafts leave `audited: ~`; only audit skill stamps it. Version existing maps, never overwrite/delete their scope; non-scope-changing notes are allowed; `slice-planner` builds only the current map.
 
 ## Handoff
 
@@ -169,8 +167,8 @@ Confirm:
 - Files written, each path; for re-slice, versioned directory and what it was diffed against.
 - Ship sequence: one line with est LOC, actor and progress per ship (e.g. "01 skeleton builds+deploys (~15, dev) → 02 form saves (~60, end user) → 03 reaches Linear (~80, end user)").
 - Calibration: PRs sampled, pass/fail counts and reasons, median/p75, passing vs failing inflation, fix-tail rate; or `team norm: not established`.
-- Size: slice count, median `est_loc`, `sweep` and `size_exception` slices with causes/reasons.
+- Size: slice count, median `est_loc`, and splits made for the 200 LOC breakpoint.
 - Pitch `status`, `started`, `slices`, or held pending map choice; prerequisites (new dependencies/tools and delivering slices, or "none").
 - Slice audit verdict and merges/splits/re-cuts with reasons; feasibility checks and sources plus unconfirmed assumptions.
 - Risks and ship checkpoints confirmed in `00-overview.md`; deployment slices with real rollout/migration plans and those not applicable with reasons.
-- Judgment calls: slices combined, rabbit holes avoided. Next: slices ready for `slice-planner` (`../slice-planner/SKILL.md`); in a re-slice it builds only the map marked current.
+- Judgment calls: slices combined, rabbit holes avoided, and any departures from this procedure required by developer instructions (including review or sections) and their reasons. Next: slices ready for `slice-planner` (`../slice-planner/SKILL.md`); in a re-slice it builds only the map marked current.

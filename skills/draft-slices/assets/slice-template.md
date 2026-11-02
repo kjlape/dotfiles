@@ -2,11 +2,9 @@
 status: planned
 completed: ~
 audited: ~              # set by the audit skill, never on a fresh draft
-size_class: <normal | sweep>
-est_loc: <N>              # changed LOC excluding tests, docs, lockfiles, generated; = analogue first-commit size × calibration inflation factor; <=100 unless sweep or size_exception
+est_loc: <N>              # changed LOC excluding tests, docs, lockfiles, generated; = analogue first-commit size × calibration inflation factor or documented fallback; <=200
 axis: <split axis vs the prior slice: workflow step, operation, business rule, data variant, entry method, simple vs complex, or deferred performance — "none" only for slice 01>
-analogue: <PR number or commit sha/path:line of a similar past change and its measured size, or "none (greenfield)">
-size_exception: ~         # cause (new subsystem / first-of-kind surface / measured analogue) + reason, only if over budget and not a sweep
+analogue: <PR number or commit sha/path:line of a similar past change and its measured size, or "none (greenfield)" / "none (team norm not established)">
 pr: ~                     # PR URL, filled when shipped
 commits: ~                # implementing commit SHAs, filled when shipped
 ---
@@ -40,8 +38,6 @@ commits: ~                # implementing commit SHAs, filled when shipped
 - <Error path, if the slice adds one>: <what fails and how the failure is surfaced>
 - Acceptance (only when Done when is user-visible): `<command>` <expected observable result>
 - Integration (only when the slice touches a real runtime): <what runtime behavior is verified>
-
-For a `sweep` slice, replace this section with: the transform rule, the committed script or command, 3–5 sample before/after hunks, and the command that shows zero remaining matches.
 
 ---
 

@@ -24,9 +24,9 @@ Measured from the team's own merged PRs (see `draft-slices` Step 4). Sample the 
 | Inflation factor (passing) | <x>× | median merged ÷ first-commit size |
 | Inflation factor (failing) | <x>× | computed separately |
 | Fix-tail rate | <N>% | PRs with follow-up fix PRs |
-| Team norm | established / not established (<5 passing PRs — skill default used) | |
+| Team norm | established (≥5 passing PRs) / not established (<5 — 1.5× default used) | |
 
-Per-slice `est_loc` = cited analogue's first-commit size × inflation factor (passing), cross-checked against a bottom-up count; differences >2× are explained here or in the Slice Audit. Greenfield work: `analogue: none (greenfield)`; recompute the factor after the first three slices ship and re-estimate the rest.
+With an established norm, per-slice `est_loc` = cited analogue's first-commit size × inflation factor (passing), cross-checked against a bottom-up count; differences >2× are explained here or in the Slice Audit. Without an established norm, estimate bottom-up × 1.5 and use `analogue: none (team norm not established)`. Greenfield work: `analogue: none (greenfield)`; recompute the factor after the first three slices ship and re-estimate the rest.
 
 <In a re-slice run, prepend the version comparison here: skill versions per map, slice counts with shipped listed separately, which remaining slices were merged / split / reordered / dropped and why, any newer-skill rule that changed the outcome, and the map status (`proposed` / `current`).>
 
@@ -44,10 +44,10 @@ No entry may be left without a delivering slice. Anything unverified is marked `
 
 Each row is one PR that merges and deploys on its own, in this order. Slice 01 is a walking skeleton (dev/system actor, hello-world size) unless the repo already has an end-to-end path; for a local CLI the skeleton is the thinnest runnable path — one command executing end to end with observable output. No wiring or integration slice.
 
-| # | Slice | Class | Est LOC | Analogue | Job step (when / actor / progress / observed via) |
-|---|---|---|---|---|---|
-| 1 | `01-<name>` | normal | <N> | <sha, size> | <e.g. when I change code, I see it build, deploy and pass one e2e check> |
-| 2 | `02-<name>` | normal | <N> | <sha, size> | <first user-facing job step> |
+| # | Slice | Est LOC | Analogue | Job step (when / actor / progress / observed via) |
+|---|---|---|---|---|
+| 1 | `01-<name>` | <N> | <sha, size> | <e.g. when I change code, I see it build, deploy and pass one e2e check> |
+| 2 | `02-<name>` | <N> | <sha, size> | <first user-facing job step> |
 
 Parallel slices, if any, touch disjoint files and are listed with the same number. Shared files mean sequence them.
 
@@ -55,7 +55,9 @@ Parallel slices, if any, touch disjoint files and are listed with the same numbe
 
 | Slice | Minimal | Sufficient | Right-sized | Floor (actor / axis / buys) | Notes |
 |---|---|---|---|---|---|
-| `01-<name>` | <every deliverable and test traces to Done when + a pitch work stream> | <slice plus declared dependencies reaches Done when> | <est_loc <=100 with analogue, or sweep rules met> | <named actor + circumstance / axis from `axis:` / what the split buys> | <split, trimmed, re-cut, size_exception reason, or none> |
+| `01-<name>` | <every deliverable and test traces to Done when + a pitch work stream> | <slice plus declared dependencies reaches Done when> | <est_loc <=200 with analogue and inflation or documented fallback> | <named actor + circumstance / axis from `axis:` / what the split buys> | <split, trimmed, re-cut, or none> |
+
+**Procedure departures:** <developer-directed departures and reasons, including review or section checks, or none; do not claim skipped checks passed.>
 
 **Verdict:** <one sentence — the set is minimal and sufficient, or what changed and why.>
 
