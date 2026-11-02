@@ -14,7 +14,7 @@ audited: <today YYYY-MM-DD>
 
 ## Prerequisites
 
-What must be true before Wave 1 can be built. Every new library, tool, service, migration, or config value this cycle introduces belongs here, and every entry names the slice that delivers it.
+What must be true before slice 01 can be built. Every new library, tool, service, migration, or config value this cycle introduces belongs here, and every entry names the slice that delivers it.
 
 | Prerequisite | Why it is needed | Delivered by | Status |
 |---|---|---|---|
@@ -22,48 +22,39 @@ What must be true before Wave 1 can be built. Every new library, tool, service, 
 
 No entry may be left without a delivering slice. Anything unverified is marked `assumption` and repeated under Risks.
 
-## Dependency Graph
+## Ship Sequence
 
-```
-01-<name>
-├── 02-<name>          (can start after 01)
-└── 03-<name>          (can start after 01, parallel with 02)
-         └── 04-<name>  (requires 01 + 02 + 03)
-```
+Each row is one PR that merges and deploys on its own, in this order. Slice 01 is the thinnest end-to-end tracer. No wiring or integration slice.
 
-## Parallelism Opportunities
+| # | Slice | Class | Est LOC | Analogue | Ships (observable in production) |
+|---|---|---|---|---|---|
+| 1 | `01-<name>` | normal | <N> | <sha, size> | <what a user or operator can now do> |
+| 2 | `02-<name>` | normal | <N> | <sha, size> | <what is newly observable> |
 
-### Wave 1 — <Name> (sequential)
-- **01** brief description of what this slice establishes
-
-### Wave 2 — <Name> (N devs in parallel after Wave 1)
-- **02** brief description
-- **03** brief description
-
-### Wave 3 — <Name> (sequential, assembles Wave 2)
-- **04** brief description
+Parallel slices, if any, touch disjoint files and are listed with the same number. Shared files mean sequence them.
 
 ## Slice Audit
 
-| Slice | Minimal | Sufficient | Notes |
-|---|---|---|---|
-| `01-<name>` | <every deliverable and test traces to Done when + a pitch work stream> | <slice plus declared dependencies reaches Done when> | <merged, split, trimmed, or none> |
+| Slice | Minimal | Sufficient | Right-sized | Notes |
+|---|---|---|---|---|
+| `01-<name>` | <every deliverable and test traces to Done when + a pitch work stream> | <slice plus declared dependencies reaches Done when> | <est_loc <=100 with analogue, or preparatory <=30, or sweep rules met> | <split, trimmed, size_exception reason, or none> |
 
 **Verdict:** <one sentence — the set is minimal and sufficient, or what changed and why.>
 
 ## Risks & Checkpoints
 
-Cross-slice risks only; per-slice tests live in the slice files. Include integration seams, migration ordering, external dependencies, and any assumption that would invalidate a wave.
+Cross-slice risks only; per-slice tests live in the slice files. Include integration seams, migration ordering, external dependencies, and any assumption that would invalidate a slice.
 
 | Risk | Affects | Mitigation | Checkpoint |
 |---|---|---|---|
 | <risk> | `02`, `03` | <what to do> | <observable signal> |
 
-### Wave checkpoints
+### Ship checkpoints
 
-- [ ] After Wave 1: `<command>` passes; <interface or data model exists as planned>
-- [ ] After Wave N: `<command>` passes; <integration behavior observable>
+- [ ] After slice 01: `<command>` passes; <the tracer path is observable in production>
+- [ ] After slice N: `<command>` passes; <newly observable behavior>
 - [ ] Final: <the pitch's outcome is observable — quote it>
+- [ ] Size review: compare each shipped slice's actual LOC to `est_loc`; record the drift in the slice's `commits`/`pr` fields
 
 ## Architecture Conventions
 

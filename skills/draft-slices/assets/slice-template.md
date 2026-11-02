@@ -2,13 +2,21 @@
 status: planned
 completed: ~
 audited: <today YYYY-MM-DD>
-wave: <N>
+wave: <N>                 # ship order, 1-based; equal numbers only for genuinely parallel slices
+size_class: <normal | preparatory | sweep>
+est_loc: <N>              # changed LOC excluding tests, docs, lockfiles, generated; <=100 (<=30 preparatory)
+analogue: <commit sha or path:line of a similar past change and its measured size, or "none found">
+size_exception: ~         # reason, only if over budget and not a sweep
+pr: ~                     # PR URL, filled when shipped
+commits: ~                # implementing commit SHAs, filled when shipped
 ---
 
 # Slice NN — <Verb Phrase Title>
 
-**Depends on:** <slug of prior slice, e.g. "01-engine-protocol", or "none">
+**Depends on:** <slug of prior slice, e.g. "01-report-form-saves", or "none">
 **Parallel with:** <slug of sibling slice(s), or "none">
+
+**Ships:** <One sentence: what a user or operator can observe in production after this merges. "Nothing yet" means the slice is `preparatory`.>
 
 **Done when:** <Observable, testable criteria. Write it as something a test can assert or a human can see: "bundle exec rake test passes with N new tests", "`squad up --engine podman` starts a container visible in `podman ps`", etc. Never write "the code is written" or "the class is implemented".>
 
@@ -28,10 +36,12 @@ wave: <N>
 
 ## Tests
 
-- <Behavior>: <what is asserted and under what conditions>
-- <Error path>: <what fails and how the failure is surfaced>
-- CLI/acceptance: `<command>` <expected observable result>
+- <Behavior>: <what is asserted and under what conditions; at least one test asserts Done when>
+- <Error path, if the slice adds one>: <what fails and how the failure is surfaced>
+- Acceptance (only when Done when is user-visible): `<command>` <expected observable result>
 - Integration (only when the slice touches a real runtime): <what runtime behavior is verified>
+
+For a `sweep` slice, replace this section with: the transform rule, the committed script or command, 3–5 sample before/after hunks, and the command that shows zero remaining matches.
 
 ---
 
