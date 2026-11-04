@@ -16,8 +16,8 @@ if [[ $1 == setup ]]; then
 fi
 
 case ${1:-} in
-  worktree) diff=(git diff) ;;                        # unstaged only
-  staged)   diff=(git diff --cached) ;;                # staged only
+  worktree) diff=(git diff); stage=(git add); stage_key="stage" ;;     # unstaged only
+  staged)   diff=(git diff --cached); stage=(git reset); stage_key="unstage" ;; # staged only
   commit)   shift
             sha=${1:?Usage: gdr commit <sha>}
             diff=(git show --format= "$sha") ;;       # single commit
@@ -26,11 +26,12 @@ esac
 
 "${diff[@]}" --numstat |
   fzf --reverse --no-sort --delimiter=$'\t' \
-      --header "${diff[*]}${sha:+ $sha}   enter open · ctrl-y copy path · ctrl-r refresh · ctrl-d/u scroll preview · alt-c clear search · esc quit" \
+      --header "${diff[*]}${sha:+ $sha}   enter open · ctrl-y copy path · ctrl-r refresh · ${stage_key:+ctrl-s $stage_key · }ctrl-d/u scroll preview · alt-c clear search · esc quit" \
       --preview "${diff[*]} --color=always -- {3} | delta --paging=never" \
       --preview-window=right,70% \
       --bind 'ctrl-y:execute-silent(printf %s {3} | uni-copy > /dev/tty)' \
       --bind 'ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up' \
       --bind 'alt-c:clear-query' \
+      --bind "ctrl-s:execute-silent(${stage[*]} -- {3})+reload(${diff[*]} --numstat)" \
       --bind "ctrl-r:unbind(change)+reload(${diff[*]} --numstat)" \
       --bind "enter:execute(${diff[*]} --color=always -- {3} | delta --paging=always)"
