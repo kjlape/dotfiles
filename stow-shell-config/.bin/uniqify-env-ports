@@ -1,190 +1,131 @@
 #!/usr/bin/env ruby
 
-require 'fileutils'
+# Rewrites every KEY_PORT=<number> line of an env file so the port doesn't
+# collide with anything else, printing the result to stdout.
+#
+# Usage: uniqify-env-ports [--slot N [--stride S]] [--reserve PORT[,PORT...]] [FILE]
+#
+# By default each port is probed: it's kept if free, otherwise a nearby free
+# port is picked. Probing only sees what's listening right now, so two env
+# files uniqified while neither service is running can get the same ports.
+#
+# With --slot, every port is offset by N * stride (stride defaults to 100)
+# instead, so callers that hand out distinct slots get non-overlapping ports
+# whether or not anything is running. If any offset port is reserved, out of
+# range or already bound, nothing is printed and the exit status is 2; try
+# another slot.
+#
+# Ports given to --reserve are treated as taken. Keys sharing a port are
+# assumed to name the same service and keep sharing it.
+
+require 'optparse'
+require 'set'
 require 'socket'
 
+PORT_RANGE = 1024..65535
+SLOT_UNAVAILABLE = 2
+
 class EnvironmentFile
-  attr_reader :path, :configurations, :lines
-  
+  PORT_LINE = /\A(?<prefix>\s*(?:export\s+)?)(?<key>[A-Za-z0-9_]*_PORT)\s*=\s*(?<port>\d+)\s*\z/
+
   def initialize(path)
-    @path = path
-    @lines = read_file
-    @configurations = []
-  end
-  
-  def read_file
-    unless File.exist?(@path)
-      raise FileNotFoundError, "File not found: #{@path}"
-    end
-    
-    File.read(@path).lines.map(&:strip)
-  end
-  
-  def find_port_configurations
-    @lines.each do |line|
-      next if line.empty? || line.start_with?('#')
-      
-      key, value = line.split('=', 2)
-      next unless key
-      
-      if key.end_with?('_PORT')
-        base_port = value.to_i
-        if (1024..65535).cover?(base_port)
-          @configurations << PortConfiguration.new(key, base_port)
-        end
-      end
-    end
-    
-    @configurations
-  end
-  
-  def output_configured_ports
-    output = +""
-    @lines.each do |line|
-      line.strip!
-      
-      configuration = @configurations.find { |c| line.start_with?("#{c.key}=") }
-      if configuration && configuration.resolved_port
-        output << "#{configuration.key}=#{configuration.resolved_port}\n"
-      else
-        output << "#{line}\n" unless line.empty?
-      end
-    end
-    
-    output
-  end
-  
-  private
-  
-  class FileNotFoundError < StandardError; end
-end
+    abort "File not found: #{path}" unless File.exist?(path)
 
-class PortConfiguration
-  attr_accessor :key, :base_port, :resolved_port
-  
-  def initialize(key, base_port)
-    @key = key
-    @base_port = base_port
-    @resolved_port = nil
+    @lines = File.read(path).lines.map(&:chomp)
   end
-  
-  def to_s
-    "#{@key}: #{@base_port} → #{@resolved_port || 'pending'}"
+
+  # Every in-range port in the file, mapped to the keys that use it
+  def ports
+    @lines.each_with_object(Hash.new { |h, k| h[k] = [] }) do |line, ports|
+      match = PORT_LINE.match(line) or next
+      port = match[:port].to_i
+      ports[port] << match[:key] if PORT_RANGE.cover?(port)
+    end
+  end
+
+  def render(resolved_ports)
+    @lines.map do |line|
+      match = PORT_LINE.match(line)
+      new_port = match && resolved_ports[match[:port].to_i]
+      new_port ? "#{match[:prefix]}#{match[:key]}=#{new_port}\n" : "#{line}\n"
+    end.join
   end
 end
 
-class PortReservation
-  attr_reader :reserved_ports
-  
-  def initialize
-    @reserved_ports = Set.new
+class PortChecker
+  def initialize(reserved_ports)
+    @reserved_ports = reserved_ports.to_set
   end
-  
+
+  # Binding both loopback and the wildcard address catches listeners on any
+  # interface, including platforms where one doesn't block the other.
   def available?(port)
-    return false if @reserved_ports.include?(port)
-    
-    server = TCPServer.new('127.0.0.1', port)
-    server.close
-    true
-  rescue Errno::EADDRINUSE, Errno::EACCES
-    false
+    PORT_RANGE.cover?(port) &&
+      !@reserved_ports.include?(port) &&
+      %w[127.0.0.1 0.0.0.0].all? { |host| bindable?(host, port) }
   end
-  
+
   def reserve(port)
     @reserved_ports << port
   end
-end
 
-class PortGenerator
-  attr_reader :base_port
-  
-  def initialize(base_port)
-    @base_port = base_port
-  end
-  
-  def generate_unique(used_ports)
-    return @base_port if available?(@base_port) && !used_ports.include?(@base_port)
-    
-    generate_similar_port(used_ports) || generate_fallback_port(used_ports)
-  end
-  
   private
-  
-  def available?(port)
-    server = TCPServer.new('127.0.0.1', port)
-    server.close
+
+  def bindable?(host, port)
+    TCPServer.new(host, port).close
     true
   rescue Errno::EADDRINUSE, Errno::EACCES
     false
   end
-  
-  def generate_similar_port(used_ports)
-    last_two = @base_port % 100
-    first_part = @base_port / 100
-    
-    (1..100).each do |offset|
-      # Variation 1: Increment first part
-      new_port = (first_part + offset) * 100 + last_two
-      return new_port if (1024..65535).cover?(new_port) && available?(new_port) && !used_ports.include?(new_port)
-      
-      # Variation 2: Increment base port
-      new_port = @base_port + offset
-      return new_port if (1024..65535).cover?(new_port) && available?(new_port) && !used_ports.include?(new_port)
-      
-      # Variation 3: Decrement base port
-      new_port = @base_port - offset
-      return new_port if (1024..65535).cover?(new_port) && available?(new_port) && !used_ports.include?(new_port)
-    end
-    
-    nil
-  end
-  
-  def generate_fallback_port(used_ports)
-    (1024..65535).each do |port|
-      return port if available?(port) && !used_ports.include?(port)
-    end
-    
-    raise PortGenerationError, "Could not find available port"
-  end
-  
-  class PortGenerationError < StandardError; end
 end
 
-class PortResolver
-  attr_reader :configurations
-  
-  def initialize(env_file_path)
-    @environment_file = EnvironmentFile.new(env_file_path)
-    @reservation = PortReservation.new
-    @configurations = []
+def probe(base_port, checker)
+  nearby = (1..100).flat_map do |offset|
+    [(base_port / 100 + offset) * 100 + base_port % 100, base_port + offset, base_port - offset]
   end
-  
-  def resolve
-    configurations = @environment_file.find_port_configurations
-    
-    configurations.each do |config|
-      generator = PortGenerator.new(config.base_port)
-      new_port = generator.generate_unique(@reservation.reserved_ports)
-      config.resolved_port = new_port
-      @reservation.reserve(new_port)
-      @configurations << config
-    end
-    
-    @configurations
-  end
-  
-  def output
-    @environment_file.output_configured_ports
-  end
+
+  ([base_port] + nearby).find { |port| checker.available?(port) } ||
+    PORT_RANGE.find { |port| checker.available?(port) } ||
+    abort("Could not find an available port for #{base_port}")
 end
 
 def main
-  env_file_path = ARGV[0] || '.env'
+  slot = nil
+  stride = 100
+  reserved_ports = []
 
-  resolver = PortResolver.new(env_file_path)
-  resolver.resolve
+  OptionParser.new do |opts|
+    opts.banner = "Usage: #{File.basename($PROGRAM_NAME)} [--slot N [--stride S]] [--reserve PORT[,PORT...]] [FILE]"
+    opts.on('--slot N', Integer, 'Offset every port by N * stride') { |n| slot = n }
+    opts.on('--stride S', Integer, 'Distance between slots (default 100)') { |s| stride = s }
+    opts.on('--reserve PORTS', Array, 'Ports to treat as taken; repeatable') do |ports|
+      reserved_ports.concat(ports.reject(&:empty?).map { |port| Integer(port) })
+    end
+  end.parse!
 
-  puts resolver.output
+  env_file = EnvironmentFile.new(ARGV[0] || '.env')
+  checker = PortChecker.new(reserved_ports)
+  resolved_ports = {}
+
+  if slot
+    conflicts = env_file.ports.filter_map do |base_port, keys|
+      port = base_port + slot * stride
+      resolved_ports[base_port] = port
+      "#{keys.join(', ')}: #{port}" unless checker.available?(port)
+    end
+
+    unless conflicts.empty?
+      warn "Slot #{slot} unavailable (#{conflicts.join('; ')})"
+      exit SLOT_UNAVAILABLE
+    end
+  else
+    env_file.ports.each_key do |base_port|
+      resolved_ports[base_port] = probe(base_port, checker)
+      checker.reserve(resolved_ports[base_port])
+    end
+  end
+
+  print env_file.render(resolved_ports)
 end
 
 main if __FILE__ == $PROGRAM_NAME
