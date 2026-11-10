@@ -1,7 +1,7 @@
 ---
 name: draft-slices
 description: Draft a cycle's slice directory — 00-overview.md plus numbered slice files — from a validated pitch. Use when a pitch is `pitched` and needs breaking into vertical slices.
-version: "2.0"
+version: "2.1"
 triggers:
   - "draft slices"
   - "write slices"
@@ -24,7 +24,7 @@ Before writing, check all five; stop and report any failure:
 1. **Pitch:** `pitches/<slug>.md` must exist. If only `pitches/.archive/<slug>.md` exists, the cycle is complete; otherwise list `pitches/`.
 2. **Status:** `pitched` proceeds. `in_progress` with a map from this skill in `slices/<slug>/` follows Re-slicing; without one (or if archived), ask whether to add to that cycle. `complete`: nothing to draft. `abandoned`: confirm intent first.
 3. **Sections:** require `## Problem`, `## Appetite`, `## Solution`, `## Rabbit Holes`, `## No Gos`; list missing sections and stop. In a re-slice, a pitch revised after review is expected; don't block.
-4. **Directory:** if `slices/<slug>/` or `slices/.archive/<slug>/` exists, version a map from this skill per Re-slicing; otherwise list existing content and stop. Never overwrite scope without explicit confirmation; non-scope-changing notes are allowed as described under Re-slicing.
+4. **Directory:** if neither `slices/<slug>/` nor `slices/.archive/<slug>/` exists, proceed with a fresh map directly in `slices/<slug>/`, creating parent directories as needed after all preconditions pass. Unrelated slice directories do not block a fresh map. If either path exists, version a map from this skill per Re-slicing, subject to the Status check above; if the existing content is not a map from this skill, list it and ask how to proceed. Never overwrite scope without explicit confirmation; non-scope-changing notes are allowed as described under Re-slicing.
 5. **Review and bet:** if `pitches/.reviews/<slug>.md` exists, require `verdict: ready_for_betting`, `betting_decision: approved`, and `pitch_sha256` matching current pitch bytes (`sha256sum pitches/<slug>.md`). Missing/malformed fields, unready verdict or pending/declined approval block: return to `stress-test-pitch` (`../stress-test-pitch/SKILL.md`) and the human decision. Never infer approval from the request or rewrite the review. Check the digest before lifecycle frontmatter changes; those need no new product review. In a re-slice, a digest mismatch from post-review pitch revisions is expected: record `review stale: pitch revised after review` in the overview and continue; a never-ready verdict or declined approval still blocks. If the approved outcome is non-software, stop and hand off its bounded action, owner and evaluation checkpoint; don't invent software work. With no review, recommend `stress-test-pitch` first; proceed only if the user explicitly bypasses it **and** approves the bet. Record the exception in `00-overview.md` and the handoff; never fabricate a passing review. This doesn't override an existing stale or failing review.
 
 ## Re-slicing an existing map

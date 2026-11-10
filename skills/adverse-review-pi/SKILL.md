@@ -1,26 +1,25 @@
 ---
 name: adverse-review-pi
 description: >
-  Multi-agent adversarial code review for Pi using @tintinweb/pi-subagents.
-  Spawns three reviewer subagents (Auditor, Adversary, Pragmatist), runs a
-  cross-examination round, then deterministically synthesizes a single ranked
-  report. Use for non-trivial PRs, security-sensitive changes, refactors that
-  touch many files, or changes where one perspective has obvious blind spots.
-  Trigger phrases include "adverse review", "adversarial review",
-  "multi-perspective review", "review my changes from multiple angles", and
-  "panel review". NOT suitable for trivial diffs (typos, dependency bumps,
-  formatting).
+  Multi-agent adversarial code review for Pi. Use for non-trivial PRs,
+  security-sensitive changes, or refactors with obvious blind spots. NOT for
+  trivial diffs (typos, dep bumps, formatting).
+triggers:
+  - "adverse review"
+  - "adversarial review"
+  - "multi-perspective review"
+  - "panel review"
 ---
 
-# Adverse — Multi-Agent Adversarial Code Review for Pi
+# Adverse — Multi-Agent Adversarial Code Review
 
 This is the Pi adaptation of the
-[adverse](https://github.com/addyosmani/adverse) review skill. It uses the
-[`@tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents)
-extension's `SubagentWorkflow` tool for visible, parallel reviewer rounds,
-and the original Node helpers for deterministic source collection and synthesis.
-Each round has a named phase and labeled reviewers in `/agents → Workflows`.
-The same review logic is also available as a standalone CLI (`adverse review …`).
+[adverse](https://github.com/addyosmani/adverse) review skill. It runs two
+rounds of parallel reviewer agents through **whatever parallel agent
+orchestration the running harness provides** — it is not tied to any specific
+extension. Round 1 is three independent persona reviews; round 2 is a
+cross-review of the surviving panel. Deterministic Node helpers handle source
+collection and synthesis.
 
 ## When to use this skill
 
@@ -31,13 +30,12 @@ change and asked for one more pass. If the diff is trivially mechanical
 
 ## Prerequisites
 
-- Node >= 20 on PATH. Verify with `node --version`.
-- Pi with `@tintinweb/pi-subagents` installed and loaded. If the extension's
-  `SubagentWorkflow` tool must be available. If it is unavailable, tell the
-  user to install or update it with `pi install npm:@tintinweb/pi-subagents`,
-  reload Pi with `/reload`, and re-invoke the skill. Do not silently substitute
-  bare `Agent` calls, shell-launched reviewers, the standalone CLI, or another
-  subagent backend: the workflow progress UI is part of this skill's contract.
+- Node >= 20 on PATH. Verify with `node --version`. If missing, ask the user
+  to install Node 20+ and re-invoke. Do not improvise a fallback; the
+  deterministic synthesizer is the contract.
+- Some mechanism for spawning reviewer subagents (see "Choosing an
+  orchestration backend"). If none exists, run the personas sequentially
+  yourself and clearly label the run as a degraded single-context panel.
 - This complete skill directory, including `scripts/` and its bundled
   prompts and source modules. No separate adverse checkout is required.
 
@@ -48,19 +46,101 @@ stdlib-only; no `npm install` is needed. Keep the supporting files together
 when copying or installing the skill; see `references/upstream.md` for
 provenance and maintenance notes.
 
-If Node is missing, ask the user to install Node 20+ and re-invoke. Do not
-improvise a fallback; the deterministic synthesizer is the contract.
-
 Use the same agent type and model configuration for all personas and both
-rounds. Omit `model` to use the configured default; do not hardcode a provider,
-model name, or model tier. If the user explicitly selects a model, apply it
-consistently. Agent frontmatter can override call parameters; if an existing
-agent configuration conflicts with the requested setup, report that rather
-than silently changing configuration.
+rounds. Omit `model` to use the configured default; do not hardcode a
+provider, model name, or model tier. If the user explicitly selects a model,
+apply it consistently. If an existing agent configuration conflicts with the
+requested setup, report that rather than silently changing configuration.
 
 Create a unique directory with `mktemp -d "${TMPDIR:-/tmp}/adverse.XXXXXX"`.
 Record its absolute path as `${RUN_DIR}` and use it for every artifact below.
 Carry that path across tool calls; shell variables do not necessarily persist.
+
+## Choosing an orchestration backend
+
+The review contract needs exactly one capability: **launch three (or more)
+reviewer agents in parallel, each with an independently assembled prompt, and
+collect each agent's complete text return.** Use the best backend available;
+do not require any specific extension.
+
+Pick the first backend in this ladder that the harness offers:
+
+1. **Workflow tooling with parallel primitives** — e.g. a `SubagentWorkflow`-
+   style tool exposing `parallel(...)` and `agent(prompt, opts)` inside an
+   inline script. Preferred when available: it gives visible, named reviewer
+   progress. Use one workflow per round, one labeled agent call per persona,
+   and a `parallel()` barrier per round (all round-1 results are needed
+   before cross-review; likewise round 2 before synthesis). Read complete
+   workflow results after the completion notification; do not poll. If
+   results are truncated or absent from context, recover them from the run's
+   persisted output beside the script. Report the workflow/run IDs to the
+   user so they can watch or interrupt.
+2. **Native parallel subagent spawning** — e.g. a batch subagent/task tool
+   that launches several agents in one call (in pi: batched subagent
+   execution). Launch all of a round's personas in a single parallel batch,
+   never one at a time. Worktree isolation is acceptable: every reviewer's
+   full source is embedded in its prompt and reviewers are read-only by
+   instruction, so no reviewer needs the live working tree.
+3. **Sequential in-context personas** — fallback only. Run each persona
+   prompt yourself in a fresh pass, keeping the personas blind to each other
+   until synthesis. Disclose prominently that the panel shared one context
+   and independence is weakened; recommend installing a parallel backend for
+   future runs.
+
+### Collection contract (required for every backend)
+
+Whatever backend you pick, results must be recoverable from disk, not only
+from notifications. End every reviewer prompt — round 1 and round 2 — with:
+
+> If your runtime has filesystem access, when your JSON object is complete
+> write it verbatim (no Markdown fences) to the file
+> `<absolute path: ${RUN_DIR}/roundN-<persona>.json>`. Either way, also
+> return it as your final message.
+
+Sandboxed workflow runtimes have no filesystem access; there the return
+value is the only channel, and workflow result persistence covers recovery.
+
+`${RUN_DIR}` lives under the system temp directory, so it is reachable even
+from agents that run in an isolated worktree. After a round's completion
+notifications arrive (or if they seem overdue), check which round files exist
+on disk and treat the file contents as the source of truth. A persona whose
+file is missing after its agent settled counts as failed and follows the
+retry rules below.
+
+Backend rules that hold regardless of choice:
+
+- Do not insert the parent's conclusions into reviewer prompts; reviewers
+  start with fresh contexts and see only their assembled prompt.
+- If a backend offers options for backgrounding, inheritance, or agent-type
+  overrides, keep all reviewers identical across personas and rounds.
+- Never launch an additional reviewer panel beyond this skill's personas;
+  invoking the skill authorizes exactly this bounded review.
+- Spawn each round's personas **once**, in a single call. If a spawn reports
+  the persona is already in flight or queued, do not spawn it again — it
+  will run when a slot frees. Duplicated spawns are the most common way this
+  skill deadlocks.
+
+### Fire-and-forget delegation backends (e.g. pi-cowboy worktree agents)
+
+Some harnesses delegate each agent to an isolated, non-blocking runner: the
+spawn call returns immediately, a concurrency limit may queue some agents,
+and each agent's result arrives only as a completion message between your
+turns. These backends work, but only if you follow their protocol exactly:
+
+- Launch all of a round's personas in **one** delegation call, then **end
+  your turn** and wait. Do not poll, do not re-spawn, do not "check status."
+  Completion messages cannot arrive while you keep making tool calls.
+- Treat a "queued (concurrency limit)" spawn result as pending, not failed.
+  It starts when a live agent settles. If round 2 would exceed the limit
+  while round-1 agents are still being cleaned up, wait for their completion
+  messages before delegating round 2.
+- When completion messages arrive, read each agent's deliverable from disk
+  per the collection contract above; the message preview is often truncated.
+  If a message never arrived but the round file exists, use the file. If
+  neither exists, revive or retry the persona once through the same backend.
+- Prefer a blocking or batch backend (options 1–2) for this skill when one
+  is available: the per-round barrier is much harder to get right across
+  turn boundaries.
 
 ## Phase 0 — decide what to review
 
@@ -98,13 +178,8 @@ diff — rather than proceeding with an empty review.
 
 ## Phase 2 — round 1: independent reviews
 
-Launch **one `SubagentWorkflow` with three parallel reviewers**, one per
-persona: auditor, adversary, pragmatist. Invoking this skill authorizes this
-bounded multi-agent review; do not launch an additional reviewer panel.
-Before launching, tell the user: **“Watch live reviewer progress in
-`/agents → Workflows`.”** Include the returned workflow run ID when available.
-
-For each reviewer, assemble the `prompt` from:
+Launch the three personas — auditor, adversary, pragmatist — in parallel
+through the chosen backend. For each reviewer, assemble the `prompt` from:
 
 1. The full contents of `${SCRIPTS_DIR}/prompts/<persona>.txt`.
 2. A boundary instruction: "Perform only this persona's review. Do not edit
@@ -113,12 +188,12 @@ For each reviewer, assemble the `prompt` from:
    requested JSON object, without Markdown fences."
 3. The full contents of `${SCRIPTS_DIR}/prompts/round1.txt`.
 4. The full contents of `${RUN_DIR}/source.txt`.
+5. The file-writing instruction from the collection contract, with this
+   round's absolute output path (`${RUN_DIR}/round1-<persona>.json`).
 
-Include persona text in `prompt`, not an invented `system_prompt` field.
-Do not replace it with generic review instructions. Workflow agents start
-with fresh contexts; do not insert the parent's conclusions into the prompts.
+Do not replace persona text with generic review instructions.
 
-Call `SubagentWorkflow` with the following inline `script` and an `args`
+With a workflow backend, call it with this inline `script` and an `args`
 object shaped as `{"reviewers": [{"persona": "auditor", "prompt": "<assembled
 prompt>"}, ...]}`. Supply all three personas and their full assembled prompts
 as actual JSON data, not a JSON-encoded string. The workflow runtime has no
@@ -142,26 +217,12 @@ const reviews = await parallel(args.reviewers.map(reviewer => async () => ({
 return { reviews }
 ```
 
-Use the same configured model for every reviewer; omit `model` by default.
-If the user explicitly selected a model, add the same `model` option to every
-`agent()` call in both rounds and any retries. `agentType` is the workflow
-option, not the standalone `Agent` tool's `subagent_type`. Persona names are
-prompt roles, not installed agent types. Do not pass standalone `Agent`
-options such as `run_in_background` or `inherit_context` to `agent()`.
+With a batch-spawning backend, the same three assembled prompts become one
+parallel batch of read-only reviewer agents; collect each agent's full text
+return. With the sequential fallback, run the three prompts yourself.
 
-Do not use worktree isolation: a worktree copy cannot see staged or
-uncommitted changes. Reviewers must remain read-only by instruction; the
-general-purpose agent is not a filesystem sandbox.
-
-Record the returned workflow run ID and script path. Workflows run in the
-background and notify on completion; do not poll or sleep. Use the complete
-workflow result, not a notification's truncated preview. If the results are
-truncated or absent from context, read the run's `<run id>.workflow.jsonl`
-beside the persisted script to recover full reviewer returns. Preserve the
-persona association and treat null results (including a null `result` inside
-an entry) as failed reviewers, not empty reviews. Do not filter failures out
-silently. All round-1 results are needed before cross-review, so the
-`parallel()` barrier here is intentional.
+If the backend supports worktree isolation, leave it on: reviewers only see
+prompt-embedded source and never touch the filesystem.
 
 Each subagent must respond with a single JSON object matching this schema:
 
@@ -183,23 +244,23 @@ Each subagent must respond with a single JSON object matching this schema:
 }
 ```
 
-Parse and validate the result, including the expected persona, required
+Parse and validate each result, including the expected persona, required
 fields, types, and enum values. Save valid objects as
 `${RUN_DIR}/round1-<persona>.json`.
 
-A null result can also mean the user skipped a reviewer in the inspector.
-Do not automatically undo a user skip: omit that reviewer and disclose reduced
-coverage; if the cause is unclear, ask before retrying.
+Treat null, empty, or missing returns as failed reviewers, not empty reviews;
+do not filter failures out silently. A null result can also mean the user
+skipped a reviewer in an inspector. Do not automatically undo a user skip:
+omit that reviewer and disclose reduced coverage; if the cause is unclear,
+ask before retrying.
 
 If a reviewer fails (not a user skip) or returns malformed JSON or an invalid
-object, **retry that persona once** with the failure or parser/validator error appended to
-its original prompt. Use another `SubagentWorkflow` with the same round's
-script and only the failed personas in `args.reviewers`, so retries remain
-visible in `/agents → Workflows`. If the retry also fails, drop that persona.
-If fewer than two
-personas survive, abort and report the failure; synthesis requires at least
-two voices. Do not treat stopped or aborted agents' partial output as a
-completed review.
+object, **retry that persona once** with the failure or parser/validator
+error appended to its original prompt, through the same backend so retries
+stay as visible as the original round. If the retry also fails, drop that
+persona. If fewer than two personas survive, abort and report the failure;
+synthesis requires at least two voices. Do not treat stopped or aborted
+agents' partial output as a completed review.
 
 After every round-1 reviewer has completed or failed, combine the surviving
 files. List only files actually validated and saved (the example shows all
@@ -217,27 +278,29 @@ If the user asked for a faster review or `--single-round`, skip this phase.
 The synthesizer treats missing round 2 as an empty cross-review.
 
 For each surviving persona, assemble a fresh cross-review prompt using the
-same settings as round 1. Each receives:
+same settings and backend as round 1. Each receives:
 
 1. Its original persona prompt and the same read-only boundary instruction.
 2. `${SCRIPTS_DIR}/prompts/round2.txt`.
 3. ALL combined round-1 reviews from `${RUN_DIR}/round1.json`.
 4. The source block from `${RUN_DIR}/source.txt`.
+5. The collection-contract instruction with the round-2 output path
+   (`${RUN_DIR}/round2-<persona>.json`).
 
 Round 2 must wait for all round-1 results: cross-review requires the complete
 surviving panel. Each persona validates findings it agrees with, challenges
 wrong or overstated findings with concrete reasons, and may add new findings
 surfaced by the other angles.
 
-Launch a second `SubagentWorkflow` using the round-1 script with these exact
-changes: `meta.name` is `adverse-round2`, `meta.description` is `Adversarial
-cross-review`, both phase titles and the `phase()` call use `Cross-review`,
-`meta.phases[0].detail` is `Challenge and validate the surviving panel`, and
-labels use `r2:${reviewer.persona}`. Pass only surviving personas and their
-assembled round-2 prompts in `args.reviewers`. This gives the cross-review
-its own visible progress group. Announce the phase and remind the user of
-`/agents → Workflows` before launching. Keep the barrier: synthesis needs
-all surviving cross-reviews.
+With a workflow backend, launch a second workflow using the round-1 script
+with these exact changes: `meta.name` is `adverse-round2`,
+`meta.description` is `Adversarial cross-review`, both phase titles and the
+`phase()` call use `Cross-review`, `meta.phases[0].detail` is `Challenge and
+validate the surviving panel`, and labels use `r2:${reviewer.persona}`. Pass
+only surviving personas and their assembled round-2 prompts in
+`args.reviewers`. With a batch backend, launch the surviving personas as one
+parallel batch. Keep the barrier: synthesis needs all surviving
+cross-reviews.
 
 Output schema:
 
@@ -250,10 +313,9 @@ Output schema:
 }
 ```
 
-Read complete workflow results after the completion notification, as in
-round 1. Parse and validate, retry failed or invalid results once through a
-visible round-2 workflow, and save valid results to
-`${RUN_DIR}/round2-<persona>.json`. Combine only the valid files:
+Read complete results after completion, as in round 1. Parse and validate,
+retry failed or invalid results once through the same backend, and save valid
+results to `${RUN_DIR}/round2-<persona>.json`. Combine only the valid files:
 
 ```bash
 node "${SCRIPTS_DIR}/combine.mjs" \
@@ -312,13 +374,15 @@ file glob that could include another run. Do not commit temporary artifacts.
 
 | Failure | What to do |
 |---|---|
-| `SubagentWorkflow` unavailable | Explain how to install/update/load `@tintinweb/pi-subagents`; stop rather than bypassing the progress UI. |
+| No parallel backend available | Run the sequential in-context fallback and label the run degraded. |
+| Completion messages seem overdue | Check the round files on disk; use whichever exists. Never re-spawn a persona that reports in-flight or queued. |
+| A spawn reports the persona is queued (concurrency limit) | Wait for live agents to settle and their slots to free; do not re-spawn. |
 | `collect.mjs` exits non-zero | Surface the error; do not launch reviewers. |
 | One round-1 reviewer fails twice | Continue with two reviewers; mark the run degraded. |
 | Fewer than two round-1 reviewers survive | Abort, preserve partial artifacts, and suggest retrying. |
 | Round-2 reviewer fails twice | Omit that cross-review and disclose reduced coverage. |
 | Node not on PATH | Ask the user to install Node 20+; no improvised fallback. |
-| User interrupts | Stop spawning workflows/retries, explain how to stop the active workflow via `/agents → Workflows`, and provide run IDs and partial-artifact paths. |
+| User interrupts | Stop spawning reviewers/retries, explain how to stop the active backend's runs (workflow inspector, agent stop controls), and provide run IDs and partial-artifact paths. |
 
 ## Notes for the orchestrator
 

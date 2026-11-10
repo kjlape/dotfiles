@@ -1,6 +1,6 @@
 ---
 name: kjlape-worktree
-description: Kaleb's personal git worktree workflow, using the `git-new-worktree` and `git-teardown-worktree` scripts from his dotfiles plus per-project setup/teardown hooks. Use whenever Kaleb asks to create/set up a new git worktree, start a new branch in a worktree, spin up an isolated working copy for a branch, tear down/remove a worktree, or add project-specific worktree spin-up/cleanup — in any repo, not just dotfiles.
+description: "Kaleb's git worktree workflow using dotfiles scripts plus per-project setup/teardown hooks. Use whenever Kaleb asks to create, tear down, or hook a git worktree, in any repo."
 version: "2.0"
 triggers:
   - "new worktree"

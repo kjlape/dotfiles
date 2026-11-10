@@ -9,8 +9,10 @@ The upstream MIT license is included in `../LICENSE`. The upstream skill is
 repository's `src/` directory. Those runtime dependencies must be bundled too:
 copying only the upstream skill's `scripts/` directory is not sufficient.
 
-The Pi adaptation uses `@tintinweb/pi-subagents` for reviewer invocations
-instead of Claude Code's Agent tool. The Node helpers only collect source,
+The Pi adaptation launches reviewer agents through whatever parallel agent
+orchestration the running harness provides (workflow tooling, batch subagent
+spawning, or a sequential fallback) instead of binding to Claude Code's Agent
+tool or any single Pi extension. The Node helpers only collect source,
 combine review JSON, and generate deterministic Markdown, JSON, and HTML
 reports; they do not launch models or require the adverse CLI to be installed.
 Runtime modules from upstream `src/{collect,synthesis,html}.mjs` live in
