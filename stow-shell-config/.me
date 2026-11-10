@@ -20,6 +20,7 @@ export DOTFILES="$MYDEV/dotfiles"
 export ICLOUD_DIR="~/Library/Mobile Documents/com~apple~CloudDocs"
 export MAKE="make"
 export MAKEFLAGS="-j$(nproc)" # https://www.gnu.org/software/make/manual/html_node/Parallel.html
+export PI_SELF_UPDATE_COMMAND="mise up pi@{version}"
 
 # Manage mischief
 export HOMEBREW_NO_AUTO_UPDATE=1
@@ -83,6 +84,21 @@ alias tebako='docker run -v $PWD:/pwd \
 alias set-hyperland-instance="export HYPRLAND_INSTANCE_SIGNATURE=$(/usr/bin/ls -t /run/user/$(id -u)/hypr/ | head -n1)"
 alias hyprctl="export HYPRLAND_INSTANCE_SIGNATURE=$(/usr/bin/ls -t /run/user/$(id -u)/hypr/ | head -n1); hyprctl"
 
+# Per-repo docker buildx builder selection, without direnv: if the current
+# repo's root has a .buildx-builder file, use its contents as BUILDX_BUILDER
+# for that invocation only. Add a (gitignored) .buildx-builder file to any
+# repo that needs a non-default builder.
+docker() {
+  local root builder
+  root=$(command git rev-parse --show-toplevel 2>/dev/null)
+  if [[ -n "$root" && -f "$root/.buildx-builder" ]]; then
+    builder=$(<"$root/.buildx-builder")
+    BUILDX_BUILDER="$builder" command docker "$@"
+  else
+    command docker "$@"
+  fi
+}
+
 editor() {
   export EDITOR="$1"
 }
@@ -143,7 +159,8 @@ function good-night {
   macos-appearance dark
   printf dark > ~/.dev-mood
   export DEV_MOOD=dark
-  run-all-app-windows MacVim ":ReloadMood"
+  run-all-app-windows MacVim ":ReloadMood
+"
 }
 
 function good-morning {

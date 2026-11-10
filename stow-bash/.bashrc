@@ -27,8 +27,6 @@ source $HOME/.me
 export PROMPT_COMMAND="history -a; $PROMPT_COMMAND"
 export HISTTIMEOUT=1
 
-# opencode
-export PATH=/home/kjlape/.opencode/bin:$PATH
 
 # mise
 export PATH="$HOME/.local/share/mise/shims:$PATH"
