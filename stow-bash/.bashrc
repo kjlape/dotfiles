@@ -12,7 +12,19 @@ if [[ -f /etc/omarchy.conf ]]; then
 else
   export OMARCHY_PATH=/usr/share/omarchy
 fi
-source "$OMARCHY_PATH/default/bash/rc"
+if [[ -f "$OMARCHY_PATH/default/bash/rc" ]]; then
+  source "$OMARCHY_PATH/default/bash/rc"
+else
+  # Not Omarchy (macOS): minimal interactive setup.
+  unset OMARCHY_PATH
+  for completion in /opt/homebrew/etc/profile.d/bash_completion.sh /usr/local/etc/profile.d/bash_completion.sh; do
+    [[ -r "$completion" ]] && source "$completion" && break
+  done
+  shopt -s histappend
+  HISTSIZE=100000
+  HISTFILESIZE=100000
+  HISTCONTROL=ignoreboth
+fi
 
 # Add your own exports, aliases, and functions here.
 #
