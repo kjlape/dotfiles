@@ -44,6 +44,7 @@ brew install bison
 brew install fzf && \
   "$(brew --prefix)"/opt/fzf/install --xdg --all 2>/dev/null || true
 brew install git
+brew install bash bash-completion@2 mise
 brew install git-lfs
 brew install delta # fancy git diff
 brew install gpg
@@ -94,3 +95,10 @@ fi
 
 # Finally
 brew cleanup
+
+# Use Homebrew bash 5 as the macOS login shell (Apple ships bash 3.2).
+if [[ "$OS" == "Darwin" ]]; then
+  BREW_BASH="$(brew --prefix)/bin/bash"
+  grep -qxF "$BREW_BASH" /etc/shells || echo "$BREW_BASH" | sudo tee -a /etc/shells >/dev/null
+  [[ "$(dscl . -read "/Users/$USER" UserShell | awk '{print $2}')" == "$BREW_BASH" ]] || chsh -s "$BREW_BASH"
+fi
