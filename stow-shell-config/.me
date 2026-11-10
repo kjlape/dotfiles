@@ -4,6 +4,10 @@ export CLICOLOR=1
 # export NVIM_APPNAME=nvim-migration
 export EDITOR=nvim
 export XDG_CONFIG_HOME="$HOME/.config"
+if [[ "$(uname)" == "Darwin" ]]; then
+  export NVIM_APPNAME=nvim-legacy
+  export KITTY_CONFIG_DIRECTORY="$XDG_CONFIG_HOME/kitty-legacy"
+fi
 export RIPGREP_CONFIG_PATH="$XDG_CONFIG_HOME/ripgrep/.ripgreprc"
 export GPG_TTY=$(tty)
 
@@ -19,7 +23,7 @@ export MYDEV="$DEV/$GIT_USER"
 export DOTFILES="$MYDEV/dotfiles"
 export ICLOUD_DIR="~/Library/Mobile Documents/com~apple~CloudDocs"
 export MAKE="make"
-export MAKEFLAGS="-j$(nproc)" # https://www.gnu.org/software/make/manual/html_node/Parallel.html
+export MAKEFLAGS="-j$(nproc 2>/dev/null || sysctl -n hw.ncpu)" # https://www.gnu.org/software/make/manual/html_node/Parallel.html
 export PI_SELF_UPDATE_COMMAND="mise up pi@{version}"
 
 # Manage mischief
@@ -65,7 +69,7 @@ alias aws-date='date -v +3M -u +"%m/%d/%Y %H:%M:%SZ"'
 alias doteb='dotenv -f .env.eb eb'
 alias blank='printf "\n%.0s" {1..$(tput lines)}'
 alias nvim-migration='NVIM_APPNAME=nvim-migration nvim'
-alias nvim-legacy='NVIM_APPNAME=nvim nvim'
+alias nvim-legacy='NVIM_APPNAME=nvim-legacy nvim'
 
 alias la="ls -a"
 alias be="bundle exec"
@@ -81,8 +85,10 @@ alias tebako='docker run -v $PWD:/pwd \
   tebako'
 
 # hypr
-alias set-hyperland-instance="export HYPRLAND_INSTANCE_SIGNATURE=$(/usr/bin/ls -t /run/user/$(id -u)/hypr/ | head -n1)"
-alias hyprctl="export HYPRLAND_INSTANCE_SIGNATURE=$(/usr/bin/ls -t /run/user/$(id -u)/hypr/ | head -n1); hyprctl"
+if command -v hyprctl >/dev/null 2>&1; then
+  alias set-hyperland-instance="export HYPRLAND_INSTANCE_SIGNATURE=$(/usr/bin/ls -t /run/user/$(id -u)/hypr/ | head -n1)"
+  alias hyprctl="export HYPRLAND_INSTANCE_SIGNATURE=$(/usr/bin/ls -t /run/user/$(id -u)/hypr/ | head -n1); hyprctl"
+fi
 
 # Per-repo docker buildx builder selection, without direnv: if the current
 # repo's root has a .buildx-builder file, use its contents as BUILDX_BUILDER
