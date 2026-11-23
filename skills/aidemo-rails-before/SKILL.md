@@ -153,7 +153,23 @@ Cheap iteration: narration → `voice` → `captions --offline` → `compose`. A
    - **Result per claim:** Reproduced / Partially / Not reproduced / Intermittent / Can't test locally, and for "not reproduced" what you varied.
    - **Evidence:** log excerpt or stack trace (trimmed, no secrets), HTTP status.
    - **Notes for whoever fixes it:** code pointers and your hypothesis, clearly labelled as hypothesis.
-3. Final message: paths, duration, the claims table with results, side effects (DB migrated/seeded, servers started, accounts created), honest rough edges, and confirmation that `git status` and the schema file are unchanged. Offer to post the write-up to the ticket; don't post without a yes.
+
+   Start the file with a YAML header so the `aidemo-rails-after` skill can find and match it:
+
+   ```yaml
+   ---
+   aidemo: before
+   ticket: ABC-123            # or null for free-text input
+   title: <short name>
+   commit: <full SHA recorded against>
+   branch: <branch>
+   recorded: <YYYY-MM-DD>
+   kit: <ticket-or-name>-before-vN/
+   claims: [{id: 1, claim: "…", result: reproduced}, …]
+   ---
+   ```
+3. Save the **replay kit** in `~/Downloads/<ticket-or-name>-before-vN/` so the same steps can be re-run after the change: `storyboard.json`, `inventory.md`, the seed script(s), and `login.sh` (with the account emails, no cookies, no `state.json`, no secrets beyond seeded test passwords).
+4. Final message: paths, duration, the claims table with results, side effects (DB migrated/seeded, servers started, accounts created), honest rough edges, and confirmation that `git status` and the schema file are unchanged. Offer to post the write-up to the ticket; don't post without a yes.
 
 ## Troubleshooting
 
