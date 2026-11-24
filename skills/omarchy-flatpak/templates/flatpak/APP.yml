@@ -1,0 +1,79 @@
+# Flatpak manifest for <Name>. Build and install it with bin/flatpak.
+# Save it as flatpak/<app-id>.yml.
+id: io.github.<owner>.<Name>
+runtime: org.kde.Platform
+runtime-version: '6.11'
+sdk: org.kde.Sdk
+command: <name>
+
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Read-only access to the Omarchy theme and language. Elsewhere these paths
+  # don't exist, so the app keeps its default accent and the system language.
+  - --filesystem=~/.local/state/omarchy:ro
+  - --filesystem=~/.config/omarchy:ro
+  # Add others only when the app needs them, e.g. --device=all for a webcam,
+  # --socket=pulseaudio for sound. Files go through the portal and need none.
+
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /share/man
+  - '*.a'
+
+modules:
+  # Only if the app runs ffmpeg: the KDE runtime has no ffmpeg command and no
+  # H.264 encoder. Delete both modules otherwise. Check that the versions are
+  # still current, and get sha256 from the release you download.
+  - name: x264
+    config-opts: [--enable-shared, --disable-cli]
+    sources:
+      - type: git
+        url: https://code.videolan.org/videolan/x264.git
+        commit: b35605ace3ddf7c1a5d67a2eb553f034aef41d55
+
+  - name: ffmpeg
+    config-opts:
+      - --enable-gpl
+      - --enable-libx264
+      - --enable-shared
+      - --disable-static
+      - --disable-autodetect   # deterministic: only what's listed here
+      - --disable-doc
+      - --disable-ffplay
+      - --disable-network
+      - --disable-debug
+    cleanup: [/share/ffmpeg]
+    sources:
+      - type: archive
+        url: https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz
+        sha256: 8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e
+
+  - name: <name>
+    buildsystem: simple
+    build-commands:
+      # The KDE SDK has had both names for qmake.
+      - mkdir -p build && cd build && (command -v qmake6 >/dev/null && qmake6 ../<name>.pro || qmake ../<name>.pro) && make -j"$FLATPAK_BUILDER_N_JOBS"
+      - install -Dm755 build/<name> /app/bin/<name>
+      - install -Dm644 LICENSE /app/share/licenses/io.github.<owner>.<Name>/LICENSE
+      - install -Dm644 pkgbuild/<name>.svg /app/share/icons/hicolor/scalable/apps/io.github.<owner>.<Name>.svg
+      - install -Dm644 flatpak/io.github.<owner>.<Name>.metainfo.xml /app/share/metainfo/io.github.<owner>.<Name>.metainfo.xml
+      # Reuse the Arch package's launcher entry, renamed to the app ID.
+      - sed -e 's/^Icon=<name>$/Icon=io.github.<owner>.<Name>/' -e 's/^StartupWMClass=<name>$/StartupWMClass=io.github.<owner>.<Name>/'
+        pkgbuild/<name>.desktop > io.github.<owner>.<Name>.desktop
+      - install -Dm644 io.github.<owner>.<Name>.desktop /app/share/applications/io.github.<owner>.<Name>.desktop
+      # If the app owns a file type: install -Dm644 pkgbuild/<name>.xml /app/share/mime/packages/io.github.<owner>.<Name>.xml
+    sources:
+      # Builds this checkout, minus the build output.
+      - type: dir
+        path: ..
+        skip:
+          - build
+          - flatpak/build-dir
+          - flatpak/repo
+          - .flatpak-builder
+          - pkgbuild/pkg
+          - pkgbuild/src

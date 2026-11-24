@@ -1,0 +1,136 @@
+#!/bin/sh
+# Cuts a release: bin/release <version> [--publish]
+#
+# Without --publish it only touches this checkout. It sets the version
+# everywhere it's written and adds a release entry to the AppStream metadata,
+# made from the commit subjects since the last tag. Then it runs the tests,
+# commits, and tags v<version>. Nothing leaves the machine.
+#
+# With --publish it also pushes the branch and tag to GitHub, builds the
+# Flatpak bundle, and makes a GitHub release with the bundle attached. If the
+# tag already exists, run it with --publish again to only publish.
+set -eu
+. "$(dirname -- "$0")/lib.sh"
+
+usage() { die "usage: bin/release <version> [--publish]   (e.g. bin/release 0.2.0)"; }
+
+VERSION="${1:-}"
+PUBLISH=0
+[ "${2:-}" = --publish ] && PUBLISH=1
+[ $# -le 2 ] || usage
+echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || usage
+TAG="v$VERSION"
+METAINFO="$ROOT/flatpak/$APP.metainfo.xml"
+cd "$ROOT"
+
+if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+  [ "$(git rev-parse "$TAG^{commit}")" = "$(git rev-parse HEAD)" ] \
+    || die "$TAG already exists and isn't this commit."
+  [ "$PUBLISH" = 1 ] || die "$TAG already exists. Add --publish to publish it."
+  echo "$TAG is already tagged here; publishing it."
+else
+  [ -z "$(git status --porcelain)" ] || die "commit or stash your changes first."
+
+  # The release notes are the commit subjects since the last release, oldest first.
+  last="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)"
+  notes="$(git log --reverse --format=%s ${last:+"$last"..HEAD} | grep -v '^Release v' || true)"
+  [ -n "$notes" ] || notes="First release."
+
+  RELEASE_DATE="$(date +%F)" RELEASE_NOTES="$notes" \
+    python3 - "$ROOT/$NAME.pro" "$ROOT/pkgbuild/PKGBUILD" "$METAINFO" "$GITHUB_REPO" "$VERSION" <<'PY'
+import html, os, re, sys
+pro, pkgbuild, metainfo, repo, version = sys.argv[1:]
+date, notes = os.environ["RELEASE_DATE"], os.environ["RELEASE_NOTES"].splitlines()
+
+def edit(path, pattern, replacement, required=True):
+    with open(path) as f:
+        text = f.read()
+    new, n = re.subn(pattern, replacement, text, count=1)
+    if n == 0 and required:
+        sys.exit(f"error: couldn't find {pattern!r} in {path}")
+    with open(path, "w") as f:
+        f.write(new)
+
+edit(pro, r"(?m)^VERSION *= *[0-9.]+", f"VERSION = {version}")
+if os.path.exists(pkgbuild):
+    edit(pkgbuild, r"(?m)^pkgver=.*$", f"pkgver={version}")
+    edit(pkgbuild, r"(?m)^pkgrel=.*$", "pkgrel=1")
+
+# Screenshots load from the release's tag, so each one shows that release.
+with open(metainfo) as f:
+    text = f.read()
+text = re.sub(rf"(raw\.githubusercontent\.com/{re.escape(repo)}/)[^/]+/", rf"\g<1>v{version}/", text)
+existing = re.search(rf'<release version="{re.escape(version)}" date="[^"]*"', text)
+if existing:
+    # This version already has an entry, perhaps written by hand, so only update its date.
+    text = text.replace(existing.group(0), f'<release version="{version}" date="{date}"')
+else:
+    if len(notes) == 1:
+        body = f"        <p>{html.escape(notes[0])}</p>"
+    else:
+        items = "\n".join(f"          <li>{html.escape(n)}</li>" for n in notes)
+        body = f"        <ul>\n{items}\n        </ul>"
+    entry = (f'    <release version="{version}" date="{date}">\n'
+             f"      <description>\n{body}\n      </description>\n"
+             f"    </release>\n")
+    if "  <releases>\n" not in text:
+        sys.exit(f"error: {metainfo} has no <releases> element")
+    text = text.replace("  <releases>\n", "  <releases>\n" + entry, 1)
+with open(metainfo, "w") as f:
+    f.write(text)
+PY
+
+  # A version that doesn't build or pass its tests is never tagged.
+  if ! "$ROOT/bin/test" >/dev/null 2>&1 || ! appstreamcli validate --no-net "$METAINFO" >/dev/null; then
+    git checkout -- .
+    die "the tests or the AppStream check failed; nothing was changed. Run bin/test to see why."
+  fi
+  [ "$(current_version)" = "$VERSION" ] || { git checkout -- .; die "$NAME.pro wasn't updated."; }
+
+  if [ -n "$(git status --porcelain)" ]; then
+    git commit -qam "Release $TAG"
+  fi
+  git tag -a "$TAG" -m "$TITLE $VERSION"
+  echo "Tagged $TAG at $(git rev-parse --short HEAD)."
+fi
+
+if [ "$PUBLISH" = 0 ]; then
+  echo "Nothing was pushed. Publish with: bin/release $VERSION --publish"
+  exit 0
+fi
+
+need gh "Install github-cli and run: gh auth login"
+gh auth status >/dev/null 2>&1 || die "log in to GitHub first: gh auth login"
+git remote get-url origin >/dev/null 2>&1 \
+  || die "there's no origin remote. See docs/PUBLISHING.md, \"Create the GitHub repository\"."
+branch="$(git branch --show-current)"
+confirm "Push $branch and $TAG to origin, and publish a GitHub release of $TAG?"
+
+git push origin "$branch" "$TAG" \
+  || die "git push failed. If a git hook stopped it, see docs/PUBLISHING.md, \"Check that git can push\"."
+"$ROOT/bin/flatpak"
+mkdir -p "$ROOT/build"
+bundle="$ROOT/build/$NAME-$VERSION.flatpak"
+cp "$ROOT/$NAME.flatpak" "$bundle"
+
+notes_file="$ROOT/build/release-notes.md"
+last="$(git describe --tags --abbrev=0 --match 'v*' "$TAG^" 2>/dev/null || true)"
+{
+  git log --reverse --format='- %s' ${last:+"$last"..}"$TAG" | grep -v '^- Release v' || true
+  cat <<NOTES
+
+## Install
+
+Download \`$NAME-$VERSION.flatpak\` below, then:
+
+\`\`\`sh
+flatpak install --user $NAME-$VERSION.flatpak
+flatpak run $APP
+\`\`\`
+
+Flatpak fetches the runtime from Flathub the first time.
+NOTES
+} >"$notes_file"
+
+gh release create "$TAG" "$bundle" --repo "$GITHUB_REPO" --title "$TITLE $VERSION" --notes-file "$notes_file"
+echo "Published $TAG. Update the Flatpak repository with: bin/flatpak-repo --publish"

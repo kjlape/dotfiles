@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Save as flatpak/<app-id>.metainfo.xml. Check it with:
+     appstreamcli validate --no-net flatpak/<app-id>.metainfo.xml -->
+<component type="desktop-application">
+  <id>io.github.<owner>.<Name></id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name><Name></name>
+  <summary><one-line summary, no trailing period></summary>
+  <developer id="io.github.<owner>">
+    <name><Your Name></name>
+  </developer>
+  <description>
+    <p>What it does, in a sentence or two, for someone who's never seen it.</p>
+    <ul>
+      <li>One feature per item</li>
+      <li>Driven from the keyboard; press ? for every shortcut</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.<owner>.<Name>.desktop</launchable>
+  <provides>
+    <binary><name></binary>
+  </provides>
+  <url type="homepage">https://github.com/<owner>/<name></url>
+  <url type="bugtracker">https://github.com/<owner>/<name>/issues</url>
+  <url type="vcs-browser">https://github.com/<owner>/<name></url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>What the screenshot shows</caption>
+      <!-- bin/release points this at each release's tag. -->
+      <image>https://raw.githubusercontent.com/<owner>/<name>/v0.1.0/docs/screenshot.png</image>
+    </screenshot>
+  </screenshots>
+  <categories>
+    <category>Utility</category>
+  </categories>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <branding>
+    <color type="primary" scheme_preference="light">#ffd60a</color>
+    <color type="primary" scheme_preference="dark">#7a6500</color>
+  </branding>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="YYYY-MM-DD">
+      <description>
+        <p>First release.</p>
+      </description>
+    </release>
+  </releases>
+</component>
