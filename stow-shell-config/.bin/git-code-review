@@ -1,9 +1,18 @@
 #!/usr/bin/env bash
-# gdr: git diff review. Usage: gdr [base] [feature] | gdr worktree | gdr staged | gdr commit <sha> | gdr setup
-pref_file=$(git rev-parse --git-dir 2>/dev/null)/code-review-base
+# gdr: git diff review. Usage: gdr [[base] feature] | gdr worktree | gdr staged | gdr commit <sha> | gdr setup
+#   gdr              default base...HEAD
+#   gdr <feature>    default base...<feature>
+#   gdr <base> <feature>
+# Base pref: per-worktree file ($GIT_DIR) overrides the shared one in the main repo ($GIT_COMMON_DIR).
+# `gdr setup` writes the shared file unless this worktree already has its own.
+pref_file=$(git rev-parse --path-format=absolute --git-dir 2>/dev/null)/code-review-base
+[[ -f $pref_file ]] || pref_file=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/code-review-base
 pref=$([[ -f $pref_file ]] && head -n1 "$pref_file")
-base=${1:-${pref:-master}}
-feature=${2:-HEAD}
+if (( $# >= 2 )); then
+  base=$1 feature=$2
+else
+  base=${pref:-master} feature=${1:-HEAD}
+fi
 
 if [[ $1 == setup ]]; then
   default=${pref:-$(git symbolic-ref --short HEAD 2>/dev/null || echo master)}
