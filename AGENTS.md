@@ -12,6 +12,10 @@ Setup: `./bootstrap.sh`; `yolo.sh` is Kaleb-only.
 | `stow-agent-skills/.pi/agent/skills` | `~/.pi/agent/skills/` |
 | `stow-agent-skills/.agents/skills` | `~/.agents/skills/` |
 
+Skills can't share a file by symlink. `npx skills add` (Skills CLI 1.9.0, checked 2026-11-24) silently drops symlinked files inside a skill, so the installed skill is missing them, with no error. Stow installs (`./install.sh`) keep them, which hides the problem locally. Until that changes, keep identical copies in each skill and list them in `tests/test_shared_skill_files.py`, which fails if they differ or are symlinks.
+
+To recheck on a newer CLI (`npx skills --version`), link a file into a skill and install it into a scratch git repo: `npx skills add <dotfiles> --skill <name> -a claude-code -y --copy`. If the linked file arrives as a regular file, switch the shared files to one real copy plus links, and drop the test's symlink check.
+
 Pi also loads `~/.agents/skills/` (Claude doesn't), so keep harness-only skills harness-specific.
 
 Commit sources and links; after pulling, run `./install.sh` or `stow -v --target="$HOME" stow-agent-skills`.

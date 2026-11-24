@@ -1,4 +1,5 @@
-# Flatpak manifest for <Name>. Build and install it with bin/flatpak.
+# Flatpak manifest for <Name>. Build and install it with bin/flatpak;
+# bin/release-flatpak publishes it.
 # Save it as flatpak/<app-id>.yml.
 id: io.github.<owner>.<Name>
 runtime: org.kde.Platform

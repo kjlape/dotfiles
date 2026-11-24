@@ -1,21 +1,23 @@
 #!/bin/sh
 # Builds the Flatpak from this checkout, installs it for this user, and
-# writes a single-file bundle (<name>.flatpak) that installs on any Linux
-# with Flatpak.
+# writes build/<name>.flatpak, a single file that installs on any Linux
+# with Flatpak but never updates. bin/release-flatpak publishes releases.
 set -eu
-. "$(dirname -- "$0")/lib.sh"
 
-# The builder runs in its own sandbox with a private /tmp, so a checkout
-# there is invisible to it and the build fails with a confusing path.
-case "$ROOT" in /tmp/* | /var/tmp/*) die "build from a checkout under your home directory, not $ROOT." ;; esac
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+. "$ROOT/bin/pages.sh"
+. "$ROOT/bin/flatpak-lib.sh"
 
+refuse_tmp "$ROOT"
 setup_builder
 cd "$ROOT/flatpak"
 $BUILDER --user --force-clean --repo=repo --install \
-  --state-dir="${APP_STATE_DIR:-$ROOT/.flatpak-builder}" build-dir "$APP.yml"
+  --state-dir="${APP_FLATPAK_STATE:-$ROOT/.flatpak-builder}" build-dir "$APP.yml"
 
-# When someone installs the bundle, Flatpak pulls the runtime from Flathub.
+# Installs pull the runtime from Flathub on their own.
+mkdir -p "$ROOT/build"
 flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
-  repo "$ROOT/$NAME.flatpak" "$APP"
+  repo "$ROOT/build/$NAME.flatpak" "$APP"
 
-echo "Installed $APP for $(id -un) and wrote $ROOT/$NAME.flatpak"
+echo "Installed $APP for $(id -un) and wrote $ROOT/build/$NAME.flatpak"
+echo "Run it with: flatpak run $APP"

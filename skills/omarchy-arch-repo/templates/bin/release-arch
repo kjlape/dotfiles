@@ -1,0 +1,131 @@
+#!/bin/sh
+# Publishes the app as a signed pacman repository on GitHub Pages, so Arch
+# machines that add it get new releases with pacman -Syu.
+#
+#   bin/release-arch            Tag v<version> (unless it's tagged), build the
+#                               package in a clean chroot, sign it, and add it
+#                               to the repository in build/pages, a checkout
+#                               of the gh-pages branch. Nothing leaves the
+#                               machine.
+#   bin/release-arch --publish  Also push the tag and gh-pages, and turn on
+#                               GitHub Pages.
+#
+# Runs on x86_64 Arch, on a clean commit whose VERSION (in the .pro file) is
+# newer than what's published. Needs devtools, for the clean chroot (it asks
+# for sudo), and APP_GPG_KEY, the key that signs the packages and the
+# database; see docs/PUBLISHING.md.
+#
+# APP_NO_CHROOT=1 builds with plain makepkg instead, to rehearse without
+# devtools. Such a build can't be published.
+set -eu
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+. "$ROOT/bin/pages.sh"
+
+parse_publish "$@"
+command -v repo-add >/dev/null && command -v vercmp >/dev/null || die "this runs on Arch Linux, with pacman."
+[ "$(uname -m)" = x86_64 ] || die "this builds x86_64 packages, on an x86_64 machine."
+CHROOT=1
+if [ "${APP_NO_CHROOT:-}" = 1 ]; then
+  CHROOT=0
+  [ "$PUBLISH" = 0 ] || die "a build made without the clean chroot can't be published."
+else
+  need extra-x86_64-build "sudo pacman -S devtools"
+fi
+KEY="${APP_GPG_KEY:-}"
+[ -n "$KEY" ] || die "set APP_GPG_KEY to the signing key's fingerprint. See docs/PUBLISHING.md."
+gpg --list-secret-keys "$KEY" >/dev/null 2>&1 || die "gpg has no secret key $KEY."
+FINGERPRINT="$(gpg --with-colons --fingerprint "$KEY" | awk -F: '/^fpr:/ { print $10; exit }')"
+cd "$ROOT"
+release_version
+PKGBUILD_TEXT="$(git show "$SOURCE:pkgbuild/PKGBUILD")"
+PKGREL="$(printf '%s\n' "$PKGBUILD_TEXT" | sed -n 's/^pkgrel=//p')"
+[ "$(printf '%s\n' "$PKGBUILD_TEXT" | sed -n 's/^pkgver=//p')" = "$VERSION" ] ||
+  die "pkgbuild/PKGBUILD's pkgver isn't $VERSION, the VERSION in $NAME.pro."
+FULL="$VERSION-$PKGREL"
+pages_checkout
+
+# arch/x86_64 is the repository: its database and the newest package, both
+# signed. pacman only ever installs the newest, so older ones are dropped.
+REPO="$PAGES/arch/x86_64"
+mkdir -p "$REPO"
+published="$(ls "$REPO" | sed -n "s/^$NAME-\([^-]*-[^-]*\)-x86_64\.pkg\.tar\.[a-z0-9]*\$/\1/p" | head -1)"
+if [ -n "$published" ]; then
+  [ "$REMOTE_PAGES" = 1 ] && [ "$published" = "$FULL" ] && pages_finish "$TITLE $FULL for Arch"
+  # One made here by a run without --publish, and not on origin, is made again.
+  if [ "$REMOTE_PAGES" = 1 ] || [ "$published" != "$FULL" ]; then
+    [ "$(vercmp "$FULL" "$published")" -gt 0 ] ||
+      die "$FULL isn't newer than the published $published. Bump the version first."
+  fi
+fi
+
+# The chroot can't see this checkout, so it builds an export of the release's
+# commit, named in that commit's PKGBUILD with its hash.
+STAGE="$ROOT/build/arch"
+rm -rf "$STAGE"
+mkdir -p "$STAGE/out"
+TARBALL="$NAME-$VERSION.tar.gz"
+git archive --format=tar.gz --prefix="$NAME-$VERSION/" -o "$STAGE/$TARBALL" "$SOURCE"
+SHA256="$(sha256sum "$STAGE/$TARBALL" | cut -d' ' -f1)"
+printf '%s\n' "$PKGBUILD_TEXT" |
+  sed -e "s/^_tarball=\$/_tarball=$TARBALL/" -e "s/^_sha256=\$/_sha256=$SHA256/" >"$STAGE/PKGBUILD"
+grep -q "^_tarball=$TARBALL\$" "$STAGE/PKGBUILD" && grep -q "^_sha256=$SHA256\$" "$STAGE/PKGBUILD" ||
+  die "couldn't fill in _tarball and _sha256 in pkgbuild/PKGBUILD."
+
+cd "$STAGE"
+export PKGDEST="$STAGE/out"
+if [ "$CHROOT" = 1 ]; then
+  extra-x86_64-build
+else
+  makepkg -f
+fi
+PACKAGE_PATH="$(makepkg --packagelist | grep -v -- "-debug-" | head -1)"
+PACKAGE="$(basename "$PACKAGE_PATH")"
+# makechrootpkg may leave it next to the PKGBUILD instead.
+[ -f "$PACKAGE_PATH" ] || PACKAGE_PATH="$STAGE/$PACKAGE"
+[ -f "$PACKAGE_PATH" ] || die "the build made no $PACKAGE."
+cd "$ROOT"
+
+# Swaps the newest package in: the old one leaves the database and the folder.
+find "$REPO" -maxdepth 1 -name "$NAME-*.pkg.tar.*" ! -name "$PACKAGE" ! -name "$PACKAGE.sig" -delete
+cp "$PACKAGE_PATH" "$REPO/$PACKAGE"
+gpg --batch --yes --local-user "$KEY" --detach-sign --output "$REPO/$PACKAGE.sig" "$REPO/$PACKAGE"
+# --verify refuses to add to a database whose signature doesn't check out.
+repo-add --quiet --verify --sign --key "$KEY" "$REPO/$NAME.db.tar.gz" "$REPO/$PACKAGE"
+rm -f "$REPO"/*.old "$REPO"/*.old.sig
+# repo-add makes <name>.db a symlink to <name>.db.tar.gz, and GitHub Pages
+# doesn't serve symlinks, so each becomes a copy.
+for link in "$NAME.db" "$NAME.db.sig" "$NAME.files" "$NAME.files.sig"; do
+  if [ -L "$REPO/$link" ]; then
+    target="$(readlink "$REPO/$link")"
+    rm "$REPO/$link"
+    cp "$REPO/$target" "$REPO/$link"
+  fi
+done
+
+gpg --export --armor "$KEY" >"$PAGES/arch/$NAME.gpg"
+cat >"$PAGES/arch/install.html" <<EOF
+<h2>Arch Linux</h2>
+<p>Trust the key that signs the repository, once. Its fingerprint is
+<code>$FINGERPRINT</code>.</p>
+<pre>curl -fsSLO $PAGES_URL/arch/$NAME.gpg
+sudo pacman-key --add $NAME.gpg
+sudo pacman-key --lsign-key $FINGERPRINT</pre>
+<p>Add the repository to <code>/etc/pacman.conf</code>:</p>
+<pre>[$NAME]
+SigLevel = Required
+Server = $PAGES_URL/arch/\$arch</pre>
+<p>Then install $TITLE $VERSION:</p>
+<pre>sudo pacman -Syu $NAME</pre>
+<p>New releases arrive with <code>pacman -Syu</code>. For x86_64.</p>
+EOF
+
+pages_commit "Publish $TITLE $TAG for Arch"
+echo "Added $PACKAGE to $REPO and tagged $TAG."
+if [ "$PUBLISH" = 0 ]; then
+  echo "Nothing was pushed. Publish with: bin/release-arch --publish"
+  exit 0
+fi
+pages_publish "$TITLE $FULL for Arch"
+echo "Published. Machines with the repository get $FULL with: sudo pacman -Syu"
+echo "Setup for new ones is at $PAGES_URL/"

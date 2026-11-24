@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Save as flatpak/<app-id>.metainfo.xml. Check it with:
-     appstreamcli validate --no-net flatpak/<app-id>.metainfo.xml -->
+<!-- Save as flatpak/<app-id>.metainfo.xml, and check it with appstreamcli
+     validate and its no-net flag. (XML comments can't hold two hyphens.) -->
 <component type="desktop-application">
   <id>io.github.<owner>.<Name></id>
   <metadata_license>CC0-1.0</metadata_license>
@@ -27,7 +27,7 @@
   <screenshots>
     <screenshot type="default">
       <caption>What the screenshot shows</caption>
-      <!-- bin/release points this at each release's tag. -->
+      <!-- bin/release-flatpak points this at each release's tag. -->
       <image>https://raw.githubusercontent.com/<owner>/<name>/v0.1.0/docs/screenshot.png</image>
     </screenshot>
   </screenshots>
@@ -43,11 +43,8 @@
     <color type="primary" scheme_preference="dark">#7a6500</color>
   </branding>
   <content_rating type="oars-1.1"/>
+  <!-- Left empty: bin/release-flatpak adds each release's entry in its own
+       checkout of the tag, from the commit subjects since the last one. -->
   <releases>
-    <release version="0.1.0" date="YYYY-MM-DD">
-      <description>
-        <p>First release.</p>
-      </description>
-    </release>
   </releases>
 </component>

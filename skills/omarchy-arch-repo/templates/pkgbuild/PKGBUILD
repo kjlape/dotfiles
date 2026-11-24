@@ -1,0 +1,40 @@
+pkgname=<name>
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='One line on what it does'
+arch=('x86_64' 'aarch64')
+license=('MIT')
+depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'xdg-desktop-portal')
+makedepends=('gcc' 'make')
+
+# bin/install builds this checkout. bin/release-arch fills in _tarball and
+# _sha256 with an export of the tagged commit, so a clean chroot, which can't
+# see this checkout, builds exactly what was tagged. Leave both empty here.
+_tarball=
+_sha256=
+source=(${_tarball:+"$_tarball"})
+sha256sums=(${_sha256:+"$_sha256"})
+
+# The tree to build: the export in a release, this checkout otherwise.
+_tree() {
+  if [ -n "$_tarball" ]; then
+    printf '%s\n' "$srcdir/$pkgname-$pkgver"
+  else
+    printf '%s\n' "$startdir/.."
+  fi
+}
+
+build() {
+  cd "$(_tree)"
+  ./bin/build
+}
+
+# Every path is inside the tree, never "$startdir/…": in a release, $startdir
+# is the staging folder, which holds only this PKGBUILD and the tarball.
+package() {
+  cd "$(_tree)"
+  install -Dm755 build/<name> "$pkgdir/usr/bin/<name>"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 pkgbuild/<name>.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/<name>.svg"
+  install -Dm644 pkgbuild/<name>.desktop "$pkgdir/usr/share/applications/<name>.desktop"
+}
