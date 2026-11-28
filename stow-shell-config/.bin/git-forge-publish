@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Publish the current repo to the tailnet forge: add the remote, push every
+# branch and tag, and set upstreams. The forge creates the repo on first push.
+#
+# Usage: git forge-publish [repo-name]   (default: the repo's directory name)
+# Env:   GIT_FORGE_HOST   (default git.hair-pentatonic.ts.net)
+#        GIT_FORGE_OWNER  (default kjlape)
+#        GIT_FORGE_REMOTE (default origin)
+set -euo pipefail
+
+host="${GIT_FORGE_HOST:-git.hair-pentatonic.ts.net}"
+owner="${GIT_FORGE_OWNER:-kjlape}"
+remote="${GIT_FORGE_REMOTE:-origin}"
+
+case "${1:-}" in
+  -h|--help) sed -n '2,8s/^# \{0,1\}//p' "$0"; exit 0 ;;
+esac
+
+top="$(git rev-parse --show-toplevel)"
+name="${1:-$(basename "$top")}"
+url="git@${host}:${owner}/${name}.git"
+
+if existing="$(git remote get-url "$remote" 2>/dev/null)"; then
+  if [ "$existing" != "$url" ]; then
+    echo "error: remote '$remote' already points to $existing (wanted $url)" >&2
+    echo "       set GIT_FORGE_REMOTE to use another remote name" >&2
+    exit 1
+  fi
+  echo "remote '$remote' already set to $url"
+else
+  git remote add "$remote" "$url"
+  echo "added remote '$remote' -> $url"
+fi
+
+# The forge supports LFS locking; opt in so pushes stop printing the hint.
+git config "lfs.https://${host}/${owner}/${name}.git/info/lfs.locksverify" true
+
+git push -u "$remote" --all
+git push "$remote" --tags
